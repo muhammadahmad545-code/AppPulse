@@ -1,5 +1,6 @@
 import 'package:app_pulse/core/constants/app_constants.dart';
 import 'package:app_pulse/features/apps/presentation/widgets/limit_reminder_listener.dart';
+import 'package:app_pulse/features/settings/presentation/providers/settings_providers.dart';
 import 'package:app_pulse/features/settings/presentation/providers/theme_providers.dart';
 import 'package:app_pulse/l10n/app_localizations.dart';
 import 'package:app_pulse/routing/app_router.dart';
@@ -18,6 +19,9 @@ class AppPulseApp extends ConsumerWidget {
     final router = ref.watch(appRouterProvider);
     final themeMode = ref.watch(themeModeProvider);
     final dynamicColorEnabled = ref.watch(dynamicColorEnabledProvider);
+    final localeCode = ref.watch(appLocaleCodeProvider);
+    final locale =
+        localeCode == null || localeCode.isEmpty ? null : Locale(localeCode);
 
     return DynamicColorBuilder(
       builder: (lightDynamic, darkDynamic) {
@@ -28,6 +32,7 @@ class AppPulseApp extends ConsumerWidget {
           themeMode: themeMode,
           theme: AppTheme.light(useDynamic ? lightDynamic : null),
           darkTheme: AppTheme.dark(useDynamic ? darkDynamic : null),
+          locale: locale,
           routerConfig: router,
           builder: (context, child) {
             return LimitReminderListener(

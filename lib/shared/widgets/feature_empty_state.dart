@@ -8,6 +8,7 @@ class FeatureEmptyState extends StatelessWidget {
     required this.message,
     this.actionLabel,
     this.onAction,
+    this.leading,
     super.key,
   });
 
@@ -16,6 +17,7 @@ class FeatureEmptyState extends StatelessWidget {
   final String message;
   final String? actionLabel;
   final VoidCallback? onAction;
+  final Widget? leading;
 
   @override
   Widget build(BuildContext context) {
@@ -30,15 +32,20 @@ class FeatureEmptyState extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(
-                width: 88,
-                height: 88,
-                decoration: BoxDecoration(
-                  color: scheme.primaryContainer.withValues(alpha: 0.55),
-                  borderRadius: BorderRadius.circular(28),
-                ),
-                child: Icon(icon, size: 40, color: scheme.onPrimaryContainer),
-              ),
+              leading ??
+                  Container(
+                    width: 88,
+                    height: 88,
+                    decoration: BoxDecoration(
+                      color: scheme.primaryContainer.withValues(alpha: 0.55),
+                      borderRadius: BorderRadius.circular(28),
+                    ),
+                    child: Icon(
+                      icon,
+                      size: 40,
+                      color: scheme.onPrimaryContainer,
+                    ),
+                  ),
               const SizedBox(height: 24),
               Text(
                 title,

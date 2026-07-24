@@ -5,6 +5,7 @@ import 'package:app_pulse/core/extensions/duration_extensions.dart';
 import 'package:app_pulse/core/logging/app_logger.dart';
 import 'package:app_pulse/database/app_database.dart';
 import 'package:app_pulse/infrastructure/di/settings_storage.dart';
+import 'package:app_pulse/infrastructure/platform/usage_stats_platform.dart';
 import 'package:app_pulse/services/limits/limit_models.dart';
 import 'package:app_pulse/services/notifications/notification_service.dart';
 import 'package:hive/hive.dart';
@@ -18,15 +19,18 @@ final class LimitCheckService {
     required AppDatabase database,
     required SettingsStorage settings,
     required NotificationService notifications,
+    UsageStatsPlatform? platform,
     Box<dynamic>? dedupeBox,
   })  : _db = database,
         _settings = settings,
         _notifications = notifications,
+        _platform = platform ?? UsageStatsPlatform(),
         _dedupe = dedupeBox;
 
   final AppDatabase _db;
   final SettingsStorage _settings;
   final NotificationService _notifications;
+  final UsageStatsPlatform _platform;
   Box<dynamic>? _dedupe;
 
   static const _dedupeBoxName = 'limit_alerts_dedupe';
@@ -42,10 +46,6 @@ final class LimitCheckService {
     String? foregroundPackage,
     bool notify = true,
   }) async {
-    if (!_settings.notificationsEnabled && notify) {
-      // Still compute alerts for in-app UI, but skip system notifications.
-    }
-
     final limits = await _db.limitsDao.getAllLimits();
     final enabled = limits.where((l) => l.isEnabled).toList();
     if (enabled.isEmpty) return const [];
@@ -58,7 +58,12 @@ final class LimitCheckService {
         : _parsePackages(focusActive.blockedPackagesJson);
 
     for (final limit in enabled) {
-      final usedMs = await _usedMs(limit.packageName, limit.limitType, now);
+      final type = LimitTypeStorage.fromStorage(limit.limitType);
+      if (type == LimitType.custom && !_isWithinCustomWindow(limit, now)) {
+        continue;
+      }
+
+      final usedMs = await _usedMs(limit, now);
       final limitMs = limit.limitDurationMs;
       if (limitMs <= 0) continue;
 
@@ -66,7 +71,6 @@ final class LimitCheckService {
       final app = await _db.appsDao.getByPackage(limit.packageName);
       final appName = app?.appName ?? limit.packageName;
       final action = LimitActionStorage.fromStorage(limit.actionOnReach);
-      final type = LimitTypeStorage.fromStorage(limit.limitType);
 
       LimitAlertKind? kind;
       if (remainingMs <= 0) {
@@ -100,8 +104,6 @@ final class LimitCheckService {
       );
       alerts.add(alert);
 
-      // During focus, silence non-emergency reminders unless the blocked app
-      // is currently in the foreground.
       final inFocusSilence = focusActive != null &&
           kind != LimitAlertKind.reached &&
           !(blocked.contains(limit.packageName) &&
@@ -118,6 +120,18 @@ final class LimitCheckService {
           silent: action == LimitAction.onlyNotify &&
               kind != LimitAlertKind.reached,
         );
+        if (action == LimitAction.overlay) {
+          try {
+            if (await _platform.canDrawOverlays()) {
+              await _platform.showLimitOverlay(
+                title: alert.title,
+                body: alert.body,
+              );
+            }
+          } catch (error, stack) {
+            AppLogger.w('System overlay failed', error, stack);
+          }
+        }
         await _markNotified(alert, now);
         AppLogger.i(
           'Limit alert: ${alert.appName} ${alert.kind.name} '
@@ -129,23 +143,38 @@ final class LimitCheckService {
     return alerts;
   }
 
-  Future<int> _usedMs(String package, String limitType, DateTime now) async {
-    switch (LimitTypeStorage.fromStorage(limitType)) {
+  bool _isWithinCustomWindow(AppLimit limit, DateTime now) {
+    final start = limit.customWindowStart;
+    final end = limit.customWindowEnd;
+    if (start == null || end == null) return false;
+    return !now.isBefore(start) && !now.isAfter(end);
+  }
+
+  Future<int> _usedMs(AppLimit limit, DateTime now) async {
+    switch (LimitTypeStorage.fromStorage(limit.limitType)) {
       case LimitType.daily:
-      case LimitType.custom:
         final row =
-            await _db.summariesDao.getDailyForPackage(package, now.dayKey);
+            await _db.summariesDao.getDailyForPackage(limit.packageName, now.dayKey);
         return row?.totalDurationMs ?? 0;
+      case LimitType.custom:
+        final start = limit.customWindowStart ?? now.startOfDay;
+        final end = limit.customWindowEnd ?? now.endOfDay;
+        final sessions = await _db.sessionsDao.getSessionsInRange(
+          start,
+          end,
+          packageName: limit.packageName,
+        );
+        return sessions.fold<int>(0, (s, e) => s + (e.durationMs ?? 0));
       case LimitType.weekly:
         final rows = await _db.summariesDao.getWeeklySummaries(now.weekKey);
         for (final row in rows) {
-          if (row.packageName == package) return row.totalDurationMs;
+          if (row.packageName == limit.packageName) return row.totalDurationMs;
         }
         return 0;
       case LimitType.monthly:
         final rows = await _db.summariesDao.getMonthlySummaries(now.monthKey);
         for (final row in rows) {
-          if (row.packageName == package) return row.totalDurationMs;
+          if (row.packageName == limit.packageName) return row.totalDurationMs;
         }
         return 0;
     }
@@ -156,7 +185,6 @@ final class LimitCheckService {
     final key = _dedupeKey(alert, now);
     if (box.containsKey(key)) return false;
 
-    // Strict mode re-notifies every 15 minutes after reach.
     if (alert.kind == LimitAlertKind.reached &&
         alert.action == LimitAction.strict) {
       final last = box.get('strict_${alert.limitId}') as int?;
@@ -167,7 +195,6 @@ final class LimitCheckService {
       }
     }
 
-    // Delay action: wait 2 minutes after first reach marker.
     if (alert.kind == LimitAlertKind.reached &&
         alert.action == LimitAction.delay) {
       final firstKey = 'delay_first_${alert.limitId}_${now.dayKey}';
@@ -196,7 +223,8 @@ final class LimitCheckService {
 
   String _dedupeKey(LimitAlert alert, DateTime now) {
     final bucket = switch (alert.limitType) {
-      LimitType.daily || LimitType.custom => now.dayKey,
+      LimitType.daily => now.dayKey,
+      LimitType.custom => 'custom_${alert.limitId}',
       LimitType.weekly => now.weekKey,
       LimitType.monthly => now.monthKey,
     };

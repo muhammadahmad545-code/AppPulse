@@ -1,30 +1,51 @@
 import 'package:app_pulse/core/constants/app_constants.dart';
 import 'package:app_pulse/core/extensions/duration_extensions.dart';
 import 'package:app_pulse/features/dashboard/presentation/providers/dashboard_providers.dart';
+import 'package:app_pulse/features/focus/presentation/screens/focus_screen.dart';
 import 'package:app_pulse/features/onboarding/presentation/providers/permission_providers.dart';
+import 'package:app_pulse/features/settings/presentation/widgets/update_checker.dart';
 import 'package:app_pulse/infrastructure/di/providers.dart';
 import 'package:app_pulse/routing/routes.dart';
+import 'package:app_pulse/shared/widgets/async_error_view.dart';
 import 'package:app_pulse/shared/widgets/charts/hourly_usage_chart.dart';
 import 'package:app_pulse/shared/widgets/charts/usage_bar_chart.dart';
 import 'package:app_pulse/shared/widgets/charts/usage_pie_chart.dart';
 import 'package:app_pulse/shared/widgets/feature_empty_state.dart';
+import 'package:app_pulse/shared/widgets/lottie_empty.dart';
 import 'package:app_pulse/shared/widgets/metric_tile.dart';
 import 'package:app_pulse/shared/widgets/section_header.dart';
+import 'package:app_pulse/shared/widgets/shimmer_loading.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 /// Main dashboard with live screen-time metrics and charts.
-class DashboardScreen extends ConsumerWidget {
+class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      checkAndPromptForAppUpdate(context, ref, silentIfNone: true);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ref = this.ref;
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final permissions = ref.watch(permissionSnapshotProvider);
     final snapshot = ref.watch(dashboardSnapshotProvider);
     final trackingEnabled = ref.watch(trackingEnabledProvider);
+    final focusAsync = ref.watch(activeFocusProvider);
 
     return Scaffold(
       body: RefreshIndicator(
@@ -92,12 +113,21 @@ class DashboardScreen extends ConsumerWidget {
 
                 return snapshot.when(
                   loading: () => [
-                    const SliverFillRemaining(
-                      child: Center(child: CircularProgressIndicator()),
+                    const SliverPadding(
+                      padding: EdgeInsets.all(16),
+                      sliver: SliverToBoxAdapter(
+                        child: ShimmerBlock(height: 220),
+                      ),
                     ),
                   ],
                   error: (e, _) => [
-                    SliverFillRemaining(child: Center(child: Text('$e'))),
+                    SliverFillRemaining(
+                      child: AsyncErrorView(
+                        error: e,
+                        onRetry: () =>
+                            ref.invalidate(dashboardSnapshotProvider),
+                      ),
+                    ),
                   ],
                   data: (data) {
                     if (data.today == Duration.zero &&
@@ -126,6 +156,7 @@ class DashboardScreen extends ConsumerWidget {
                                     ref.invalidate(dashboardSnapshotProvider);
                                   }
                                 : () => context.go(AppRoutes.settings),
+                            leading: const LottieEmptyAccent(size: 120),
                           ),
                         ),
                       ];
@@ -136,6 +167,52 @@ class DashboardScreen extends ConsumerWidget {
                         padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
                         sliver: SliverList.list(
                           children: [
+                            focusAsync.when(
+                              loading: () => const SizedBox.shrink(),
+                              error: (_, _) => const SizedBox.shrink(),
+                              data: (focus) {
+                                if (focus == null) {
+                                  return const SizedBox.shrink();
+                                }
+                                final elapsed =
+                                    DateTime.now().difference(focus.startedAt);
+                                final remaining = Duration(
+                                  milliseconds: (focus.plannedDurationMs -
+                                          elapsed.inMilliseconds)
+                                      .clamp(0, focus.plannedDurationMs),
+                                );
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: Card(
+                                    color: scheme.primaryContainer,
+                                    child: ListTile(
+                                      leading: Icon(
+                                        Icons.center_focus_strong_rounded,
+                                        color: scheme.onPrimaryContainer,
+                                      ),
+                                      title: Text(
+                                        'Focus mode active',
+                                        style: TextStyle(
+                                          color: scheme.onPrimaryContainer,
+                                        ),
+                                      ),
+                                      subtitle: Text(
+                                        '${remaining.compactLabel} remaining',
+                                        style: TextStyle(
+                                          color: scheme.onPrimaryContainer,
+                                        ),
+                                      ),
+                                      trailing: Icon(
+                                        Icons.chevron_right_rounded,
+                                        color: scheme.onPrimaryContainer,
+                                      ),
+                                      onTap: () =>
+                                          context.push(AppRoutes.focus),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
                             _HeroTimeCard(
                               label: 'Today',
                               value: data.todayLabel,
@@ -143,6 +220,23 @@ class DashboardScreen extends ConsumerWidget {
                                   '${data.launchCount} launches · '
                                   '${data.appCountTrackedToday} apps',
                               trend: data.trendLabel,
+                            ),
+                            const SizedBox(height: 12),
+                            const SectionHeader(
+                              title: 'Comparison',
+                              subtitle: 'Today vs yesterday',
+                            ),
+                            UsageBarChart(
+                              points: [
+                                BarPoint(
+                                  label: 'Yday',
+                                  duration: data.yesterday,
+                                ),
+                                BarPoint(
+                                  label: 'Today',
+                                  duration: data.today,
+                                ),
+                              ],
                             ),
                             const SizedBox(height: 12),
                             Row(

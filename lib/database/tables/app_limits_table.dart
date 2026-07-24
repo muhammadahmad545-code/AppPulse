@@ -16,6 +16,10 @@ class AppLimits extends Table {
       integer().withDefault(const Constant(5))();
   IntColumn get secondaryWarnAtMinutesRemaining =>
       integer().withDefault(const Constant(10))();
+  /// Inclusive start of a custom limit window (custom type only).
+  DateTimeColumn get customWindowStart => dateTime().nullable()();
+  /// Inclusive end of a custom limit window (custom type only).
+  DateTimeColumn get customWindowEnd => dateTime().nullable()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
 

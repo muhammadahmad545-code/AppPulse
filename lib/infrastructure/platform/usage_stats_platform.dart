@@ -39,6 +39,45 @@ class UsageStatsPlatform {
     await _channel.invokeMethod<void>('openBatteryOptimizationSettings');
   }
 
+  Future<bool> canDrawOverlays() async {
+    if (!isAndroid) return false;
+    final result = await _channel.invokeMethod<bool>('canDrawOverlays');
+    return result ?? false;
+  }
+
+  Future<void> openOverlaySettings() async {
+    if (!isAndroid) return;
+    await _channel.invokeMethod<void>('openOverlaySettings');
+  }
+
+  Future<void> showLimitOverlay({
+    required String title,
+    required String body,
+  }) async {
+    if (!isAndroid) return;
+    await _channel.invokeMethod<void>('showLimitOverlay', {
+      'title': title,
+      'body': body,
+    });
+  }
+
+  Future<bool> canRequestPackageInstalls() async {
+    if (!isAndroid) return false;
+    final result =
+        await _channel.invokeMethod<bool>('canRequestPackageInstalls');
+    return result ?? false;
+  }
+
+  Future<void> openUnknownAppSourcesSettings() async {
+    if (!isAndroid) return;
+    await _channel.invokeMethod<void>('openUnknownAppSourcesSettings');
+  }
+
+  Future<void> installApk(String path) async {
+    if (!isAndroid) return;
+    await _channel.invokeMethod<void>('installApk', {'path': path});
+  }
+
   Future<String?> getForegroundApp() async {
     if (!isAndroid) return null;
     return _channel.invokeMethod<String>('getForegroundApp');

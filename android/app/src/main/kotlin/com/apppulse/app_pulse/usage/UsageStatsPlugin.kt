@@ -48,6 +48,32 @@ class UsageStatsPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
                     bridge.openBatteryOptimizationSettings()
                     result.success(null)
                 }
+                "canDrawOverlays" -> result.success(bridge.canDrawOverlays())
+                "openOverlaySettings" -> {
+                    bridge.openOverlaySettings()
+                    result.success(null)
+                }
+                "showLimitOverlay" -> {
+                    val title = call.argument<String>("title") ?: "Limit reminder"
+                    val body = call.argument<String>("body") ?: ""
+                    bridge.showLimitOverlay(title, body)
+                    result.success(null)
+                }
+                "canRequestPackageInstalls" ->
+                    result.success(bridge.canRequestPackageInstalls())
+                "openUnknownAppSourcesSettings" -> {
+                    bridge.openUnknownAppSourcesSettings()
+                    result.success(null)
+                }
+                "installApk" -> {
+                    val path = call.argument<String>("path")
+                    if (path.isNullOrBlank()) {
+                        result.error("bad_args", "path required", null)
+                        return
+                    }
+                    bridge.installApk(path)
+                    result.success(null)
+                }
                 "getForegroundApp" -> result.success(bridge.getForegroundApp())
                 "getUsageEvents" -> {
                     val startMs = call.argument<Number>("startMs")?.toLong()

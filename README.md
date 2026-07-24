@@ -16,7 +16,8 @@ Production-oriented, fully offline Android app that tracks how much time you spe
 | 2 | Permissions, usage engine, background services | Complete |
 | 3 | Dashboard, apps, details, timeline | Complete |
 | 4 | Analytics, charts, reports, export | Complete |
-| 5 | Limits, notifications, focus, settings, tests, docs | **Complete — awaiting approval** |
+| 5 | Limits, notifications, focus, settings, tests, docs | Complete |
+| 6 | Gap-close: overlay, custom limits, polish, CI, signing docs | Complete |
 
 ---
 
@@ -120,3 +121,9 @@ Replace the debug signing config in `android/app/build.gradle.kts` with your Pla
 ## Privacy
 
 AppPulse is offline-first. No Firebase, no backend, no analytics SDKs. All usage data remains on-device unless the user explicitly exports or shares it.
+
+## Status & release
+
+- Feature audit: [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md)
+- Architecture: [ARCHITECTURE.md](ARCHITECTURE.md)
+- Play release signing: [docs/PLAY_RELEASE.md](docs/PLAY_RELEASE.md)

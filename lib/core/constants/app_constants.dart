@@ -23,4 +23,11 @@ abstract final class AppConstants {
   static const String notificationChannelFocus = 'focus';
   static const String notificationChannelTracking = 'tracking';
   static const String notificationChannelGeneral = 'general';
+  static const String notificationChannelUpdates = 'updates';
+
+  /// GitHub repo used for OTA sideload updates (public Releases).
+  static const String githubOwner = 'muhammadahmad545-code';
+  static const String githubRepo = 'AppPulse';
+  static const String githubReleasesApi =
+      'https://api.github.com/repos/$githubOwner/$githubRepo/releases/latest';
 }

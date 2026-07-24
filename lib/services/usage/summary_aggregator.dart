@@ -188,11 +188,7 @@ final class SummaryAggregator {
     }
   }
 
-  String _weekKey(DateTime day) {
-    final iso = day.startOfWeek;
-    final weekNumber = int.parse(DateFormat('w').format(iso));
-    return '${iso.year}-W${weekNumber.toString().padLeft(2, '0')}';
-  }
+  String _weekKey(DateTime day) => day.weekKey;
 
   /// Convenience for regenerating from an in-memory session list's day keys.
   Future<void> reaggregateFromSessions(List<ReconstructedSession> sessions) {

@@ -6,7 +6,8 @@ import 'package:app_pulse/infrastructure/di/providers.dart';
 import 'package:app_pulse/services/focus/focus_session_service.dart';
 import 'package:app_pulse/shared/widgets/section_header.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 final activeFocusProvider = StreamProvider.autoDispose<FocusSession?>((ref) {
   return ref.watch(focusSessionServiceProvider).watchActive();
@@ -18,37 +19,25 @@ final focusDayStatsProvider =
 });
 
 /// Focus mode: timed sessions with apps to avoid and daily stats.
-class FocusScreen extends ConsumerStatefulWidget {
+class FocusScreen extends HookConsumerWidget {
   const FocusScreen({super.key});
 
   @override
-  ConsumerState<FocusScreen> createState() => _FocusScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final planned = useState(FocusSessionService.presets[1]);
+    final blocked = useState(<String>{});
+    final tick = useState(0);
 
-class _FocusScreenState extends ConsumerState<FocusScreen> {
-  Duration _planned = FocusSessionService.presets[1];
-  final _blocked = <String>{};
-  Timer? _ticker;
+    useEffect(() {
+      final ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+        ref.read(focusSessionServiceProvider).tick();
+        ref.invalidate(activeFocusProvider);
+        ref.invalidate(focusDayStatsProvider);
+        tick.value++;
+      });
+      return ticker.cancel;
+    }, const []);
 
-  @override
-  void initState() {
-    super.initState();
-    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-      ref.read(focusSessionServiceProvider).tick();
-      ref.invalidate(activeFocusProvider);
-      ref.invalidate(focusDayStatsProvider);
-      if (mounted) setState(() {});
-    });
-  }
-
-  @override
-  void dispose() {
-    _ticker?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
     final activeAsync = ref.watch(activeFocusProvider);
     final statsAsync = ref.watch(focusDayStatsProvider);
     final textTheme = Theme.of(context).textTheme;
@@ -149,17 +138,15 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
                       for (final preset in FocusSessionService.presets)
                         ChoiceChip(
                           label: Text('${preset.inMinutes}m'),
-                          selected: _planned == preset,
-                          onSelected: (_) => setState(() => _planned = preset),
+                          selected: planned.value == preset,
+                          onSelected: (_) => planned.value = preset,
                         ),
                       ActionChip(
                         label: const Text('Custom'),
                         onPressed: () async {
                           final minutes = await _askCustomMinutes(context);
                           if (minutes != null && minutes > 0) {
-                            setState(
-                              () => _planned = Duration(minutes: minutes),
-                            );
+                            planned.value = Duration(minutes: minutes);
                           }
                         },
                       ),
@@ -179,17 +166,18 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
                           children: [
                             for (final app in apps.take(40))
                               CheckboxListTile(
-                                value: _blocked.contains(app.packageName),
+                                value:
+                                    blocked.value.contains(app.packageName),
                                 title: Text(app.appName),
                                 subtitle: Text(app.packageName),
                                 onChanged: (checked) {
-                                  setState(() {
-                                    if (checked == true) {
-                                      _blocked.add(app.packageName);
-                                    } else {
-                                      _blocked.remove(app.packageName);
-                                    }
-                                  });
+                                  final next = {...blocked.value};
+                                  if (checked == true) {
+                                    next.add(app.packageName);
+                                  } else {
+                                    next.remove(app.packageName);
+                                  }
+                                  blocked.value = next;
                                 },
                               ),
                           ],
@@ -202,8 +190,8 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
                     onPressed: () async {
                       try {
                         await ref.read(focusSessionServiceProvider).start(
-                              planned: _planned,
-                              blockedPackages: _blocked.toList(),
+                              planned: planned.value,
+                              blockedPackages: blocked.value.toList(),
                             );
                         ref.invalidate(activeFocusProvider);
                         ref.invalidate(focusDayStatsProvider);
@@ -216,7 +204,7 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
                       }
                     },
                     icon: const Icon(Icons.center_focus_strong_rounded),
-                    label: Text('Start ${_planned.inMinutes}m focus'),
+                    label: Text('Start ${planned.value.inMinutes}m focus'),
                   ),
                 ],
               );

@@ -32,11 +32,16 @@ extension DateTimeCalendar on DateTime {
     return '$year-$m-$d';
   }
 
-  /// ISO-ish week key `yyyy-Www` aligned with Monday week start.
+  /// ISO-8601 week key `yyyy-Www` (Monday week start).
   String get weekKey {
-    final iso = startOfWeek;
-    final weekNumber = int.parse(DateFormat('w').format(iso));
-    return '${iso.year}-W${weekNumber.toString().padLeft(2, '0')}';
+    // Thursday of this week determines the ISO week-year.
+    final thursday = startOfWeek.add(const Duration(days: 3));
+    final weekYear = thursday.year;
+    final jan4 = DateTime(weekYear, 1, 4);
+    final week1Monday = jan4.startOfWeek;
+    final weekNumber =
+        (startOfWeek.difference(week1Monday).inDays ~/ 7) + 1;
+    return '$weekYear-W${weekNumber.toString().padLeft(2, '0')}';
   }
 
   /// Month key `yyyy-MM`.

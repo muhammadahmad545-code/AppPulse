@@ -61,7 +61,7 @@ final class DatabaseBackupService {
   /// Replaces the local DB with a user-picked backup file.
   /// The app should be restarted afterward.
   Future<void> restoreFromPicker() async {
-    final result = await FilePicker.pickFiles(
+    final result = await FilePicker.platform.pickFiles(
       type: FileType.any,
       withData: false,
     );

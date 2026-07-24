@@ -9,14 +9,27 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.PixelFormat
+import android.graphics.Typeface
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
+import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.os.PowerManager
 import android.os.Process
 import android.provider.Settings
+import android.util.TypedValue
+import android.view.Gravity
+import android.view.WindowManager
+import android.widget.LinearLayout
+import android.widget.TextView
+import androidx.core.content.FileProvider
 import java.io.ByteArrayOutputStream
+import java.io.File
 
 /**
  * Native bridge around [UsageStatsManager], PackageManager, and battery optimization.
@@ -68,6 +81,134 @@ class UsageStatsBridge(private val context: Context) {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         context.startActivity(intent)
+    }
+
+    fun canDrawOverlays(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            Settings.canDrawOverlays(context)
+        } else {
+            true
+        }
+    }
+
+    fun openOverlaySettings() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
+        val intent = Intent(
+            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+            Uri.parse("package:${context.packageName}"),
+        ).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(intent)
+    }
+
+    /** Brief system overlay reminder when overlay permission is granted. */
+    fun canRequestPackageInstalls(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.packageManager.canRequestPackageInstalls()
+        } else {
+            true
+        }
+    }
+
+    fun openUnknownAppSourcesSettings() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        val intent = Intent(
+            Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+            Uri.parse("package:${context.packageName}"),
+        ).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(intent)
+    }
+
+    fun installApk(path: String) {
+        val file = File(path)
+        if (!file.exists()) {
+            throw IllegalArgumentException("APK not found: $path")
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+            !context.packageManager.canRequestPackageInstalls()
+        ) {
+            openUnknownAppSourcesSettings()
+            throw IllegalStateException(
+                "Enable “Allow from this source” for AppPulse, then tap Update again.",
+            )
+        }
+        val uri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            file,
+        )
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, "application/vnd.android.package-archive")
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(intent)
+    }
+
+    fun showLimitOverlay(title: String, body: String) {
+        if (!canDrawOverlays()) return
+        val wm = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        val density = context.resources.displayMetrics.density
+        val pad = (20 * density).toInt()
+
+        val container = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(pad, pad, pad, pad)
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#E6121B2E"))
+                cornerRadius = 28f * density
+            }
+        }
+        container.addView(
+            TextView(context).apply {
+                text = title
+                setTextColor(Color.WHITE)
+                setTypeface(typeface, Typeface.BOLD)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
+            },
+        )
+        container.addView(
+            TextView(context).apply {
+                text = body
+                setTextColor(Color.parseColor("#CCFFFFFF"))
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+                setPadding(0, (8 * density).toInt(), 0, 0)
+            },
+        )
+
+        val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+        } else {
+            @Suppress("DEPRECATION")
+            WindowManager.LayoutParams.TYPE_PHONE
+        }
+        val params = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            type,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT,
+        ).apply {
+            gravity = Gravity.TOP
+            y = (48 * density).toInt()
+        }
+
+        Handler(Looper.getMainLooper()).post {
+            try {
+                wm.addView(container, params)
+                Handler(Looper.getMainLooper()).postDelayed({
+                    try {
+                        wm.removeView(container)
+                    } catch (_: Exception) {
+                    }
+                }, 6_000L)
+            } catch (_: Exception) {
+            }
+        }
     }
 
     fun getForegroundApp(): String? {
@@ -233,26 +374,48 @@ class UsageStatsBridge(private val context: Context) {
         return when {
             listOf("whatsapp", "telegram", "signal", "messenger", "sms", "messages", "discord", "viber", "skype")
                 .any { p.contains(it) } -> "messaging"
-            listOf("instagram", "facebook", "twitter", "tiktok", "snapchat", "reddit", "linkedin", "pinterest")
-                .any { p.contains(it) } -> "social"
-            listOf("youtube", "netflix", "spotify", "twitch", "primevideo", "disney", "hotstar")
-                .any { p.contains(it) } -> "entertainment"
-            listOf("chrome", "firefox", "edge", "browser").any { p.contains(it) } -> "utilities"
-            listOf("gmail", "outlook", "office", "docs", "sheets", "notion", "evernote", "slack", "teams")
-                .any { p.contains(it) } -> "productivity"
-            listOf("duolingo", "khan", "coursera", "udemy", "classroom").any { p.contains(it) } -> "education"
-            listOf("paypal", "venmo", "bank", "wallet", "paytm", "phonepe", "revolut")
-                .any { p.contains(it) } -> "finance"
-            listOf("fitbit", "myfitness", "health", "strava", "nike").any { p.contains(it) } -> "health"
-            listOf("amazon", "ebay", "shopify", "aliexpress", "walmart", "flipkart")
-                .any { p.contains(it) } -> "shopping"
-            listOf("uber", "lyft", "maps", "waze", "booking", "airbnb").any { p.contains(it) } -> "travel"
-            listOf("game", "play.games").any { p.contains(it) } -> "gaming"
-            listOf("camera", "photo", "gallery", "lightroom").any { p.contains(it) } -> "photography"
-            listOf("news", "cnn", "bbc", "nytimes").any { p.contains(it) } -> "news"
-            listOf("food", "doordash", "ubereats", "grubhub", "swiggy", "zomato")
-                .any { p.contains(it) } -> "food"
-            listOf("music", "podcast", "audiomack").any { p.contains(it) } -> "music"
+            listOf(
+                "instagram", "facebook", "twitter", "x.com", "tiktok", "snapchat", "reddit",
+                "linkedin", "pinterest", "threads", "mastodon", "bluesky",
+            ).any { p.contains(it) } -> "social"
+            listOf(
+                "youtube", "netflix", "spotify", "twitch", "primevideo", "disney", "hotstar",
+                "hulu", "crunchyroll", "sonyliv", "jiocinema",
+            ).any { p.contains(it) } -> "entertainment"
+            listOf("chrome", "firefox", "edge", "browser", "opera", "brave", "samsung.internet")
+                .any { p.contains(it) } -> "utilities"
+            listOf(
+                "gmail", "outlook", "office", "docs", "sheets", "notion", "evernote", "slack",
+                "teams", "trello", "asana", "jira", "zoom", "meet",
+            ).any { p.contains(it) } -> "productivity"
+            listOf(
+                "duolingo", "khan", "coursera", "udemy", "classroom", "quizlet", "brilliant",
+            ).any { p.contains(it) } -> "education"
+            listOf(
+                "paypal", "venmo", "bank", "wallet", "paytm", "phonepe", "revolut", "stripe",
+                "wise", "cashapp", "jazzcash", "easypaisa", "binance", "coinbase",
+            ).any { p.contains(it) } -> "finance"
+            listOf(
+                "fitbit", "myfitness", "health", "strava", "nike", "adidas", "calm", "headspace",
+            ).any { p.contains(it) } -> "health"
+            listOf(
+                "amazon", "ebay", "shopify", "aliexpress", "walmart", "flipkart", "daraz", "etsy",
+            ).any { p.contains(it) } -> "shopping"
+            listOf(
+                "uber", "lyft", "maps", "waze", "booking", "airbnb", "tripadvisor", "careem", "bykea",
+            ).any { p.contains(it) } -> "travel"
+            listOf("game", "play.games", "roblox", "minecraft", "pubg", "fortnite", "candycrush")
+                .any { p.contains(it) } -> "gaming"
+            listOf("camera", "photo", "gallery", "lightroom", "vsco", "snapseed")
+                .any { p.contains(it) } -> "photography"
+            listOf("news", "cnn", "bbc", "nytimes", "dawn", "geo.tv").any { p.contains(it) } -> "news"
+            listOf(
+                "food", "doordash", "ubereats", "grubhub", "swiggy", "zomato", "foodpanda",
+            ).any { p.contains(it) } -> "food"
+            listOf("music", "podcast", "audiomack", "soundcloud", "anghami")
+                .any { p.contains(it) } -> "music"
+            listOf("business", "crm", "salesforce", "hubspot").any { p.contains(it) } -> "business"
+            listOf("lifestyle", "pinterest").any { p.contains(it) } -> "lifestyle"
             else -> "other"
         }
     }

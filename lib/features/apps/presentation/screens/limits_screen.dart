@@ -182,6 +182,7 @@ class _LimitEditorSheetState extends ConsumerState<_LimitEditorSheet> {
   int _minutes = 0;
   int _warnPrimary = 5;
   int _warnSecondary = 10;
+  DateTimeRange? _customRange;
 
   @override
   void initState() {
@@ -196,6 +197,13 @@ class _LimitEditorSheetState extends ConsumerState<_LimitEditorSheet> {
       _minutes = d.inMinutes % 60;
       _warnPrimary = existing.warnAtMinutesRemaining;
       _warnSecondary = existing.secondaryWarnAtMinutesRemaining;
+      if (existing.customWindowStart != null &&
+          existing.customWindowEnd != null) {
+        _customRange = DateTimeRange(
+          start: existing.customWindowStart!,
+          end: existing.customWindowEnd!,
+        );
+      }
     }
   }
 
@@ -251,6 +259,37 @@ class _LimitEditorSheetState extends ConsumerState<_LimitEditorSheet> {
                 if (value != null) setState(() => _type = value);
               },
             ),
+            if (_type == LimitType.custom) ...[
+              const SizedBox(height: 12),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Custom window'),
+                subtitle: Text(
+                  _customRange == null
+                      ? 'Pick start and end dates'
+                      : '${_customRange!.start.toLocal().toString().split(' ').first}'
+                          ' → '
+                          '${_customRange!.end.toLocal().toString().split(' ').first}',
+                ),
+                trailing: const Icon(Icons.date_range_rounded),
+                onTap: () async {
+                  final now = DateTime.now();
+                  final picked = await showDateRangePicker(
+                    context: context,
+                    firstDate: now.subtract(const Duration(days: 365)),
+                    lastDate: now.add(const Duration(days: 365)),
+                    initialDateRange: _customRange ??
+                        DateTimeRange(
+                          start: now,
+                          end: now.add(const Duration(days: 7)),
+                        ),
+                  );
+                  if (picked != null) {
+                    setState(() => _customRange = picked);
+                  }
+                },
+              ),
+            ],
             const SizedBox(height: 12),
             Row(
               children: [
@@ -327,6 +366,7 @@ class _LimitEditorSheetState extends ConsumerState<_LimitEditorSheet> {
                 if (package == null) return;
                 final duration = Duration(hours: _hours, minutes: _minutes);
                 if (duration.inMilliseconds <= 0) return;
+                if (_type == LimitType.custom && _customRange == null) return;
 
                 await ref.read(limitsDaoProvider).upsertLimit(
                       AppLimitsCompanion(
@@ -339,6 +379,12 @@ class _LimitEditorSheetState extends ConsumerState<_LimitEditorSheet> {
                         actionOnReach: Value(_action.storage),
                         warnAtMinutesRemaining: Value(_warnPrimary),
                         secondaryWarnAtMinutesRemaining: Value(_warnSecondary),
+                        customWindowStart: _type == LimitType.custom
+                            ? Value(_customRange!.start)
+                            : const Value(null),
+                        customWindowEnd: _type == LimitType.custom
+                            ? Value(_customRange!.end.endOfDay)
+                            : const Value(null),
                         isEnabled: const Value(true),
                         updatedAt: Value(DateTime.now()),
                       ),

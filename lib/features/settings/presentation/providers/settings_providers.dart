@@ -28,6 +28,10 @@ final warnMinutesSecondaryProvider =
   WarnMinutesSecondaryNotifier.new,
 );
 
+/// null / empty = system locale
+final appLocaleCodeProvider =
+    NotifierProvider<AppLocaleCodeNotifier, String?>(AppLocaleCodeNotifier.new);
+
 class ShowSystemAppsNotifier extends Notifier<bool> {
   @override
   bool build() => ref.watch(settingsStorageProvider).showSystemApps;
@@ -94,6 +98,16 @@ class WarnMinutesSecondaryNotifier extends Notifier<int> {
 
   Future<void> setMinutes(int value) async {
     await ref.read(settingsStorageProvider).setWarnMinutesSecondary(value);
+    state = value;
+  }
+}
+
+class AppLocaleCodeNotifier extends Notifier<String?> {
+  @override
+  String? build() => ref.watch(settingsStorageProvider).localeCode;
+
+  Future<void> setLocaleCode(String? value) async {
+    await ref.read(settingsStorageProvider).setLocaleCode(value);
     state = value;
   }
 }

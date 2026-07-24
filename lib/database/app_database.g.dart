@@ -3277,6 +3277,30 @@ class $AppLimitsTable extends AppLimits
         requiredDuringInsert: false,
         defaultValue: const Constant(10),
       );
+  static const VerificationMeta _customWindowStartMeta = const VerificationMeta(
+    'customWindowStart',
+  );
+  @override
+  late final GeneratedColumn<DateTime> customWindowStart =
+      GeneratedColumn<DateTime>(
+        'custom_window_start',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _customWindowEndMeta = const VerificationMeta(
+    'customWindowEnd',
+  );
+  @override
+  late final GeneratedColumn<DateTime> customWindowEnd =
+      GeneratedColumn<DateTime>(
+        'custom_window_end',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -3311,6 +3335,8 @@ class $AppLimitsTable extends AppLimits
     actionOnReach,
     warnAtMinutesRemaining,
     secondaryWarnAtMinutesRemaining,
+    customWindowStart,
+    customWindowEnd,
     createdAt,
     updatedAt,
   ];
@@ -3392,6 +3418,24 @@ class $AppLimitsTable extends AppLimits
         ),
       );
     }
+    if (data.containsKey('custom_window_start')) {
+      context.handle(
+        _customWindowStartMeta,
+        customWindowStart.isAcceptableOrUnknown(
+          data['custom_window_start']!,
+          _customWindowStartMeta,
+        ),
+      );
+    }
+    if (data.containsKey('custom_window_end')) {
+      context.handle(
+        _customWindowEndMeta,
+        customWindowEnd.isAcceptableOrUnknown(
+          data['custom_window_end']!,
+          _customWindowEndMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -3449,6 +3493,14 @@ class $AppLimitsTable extends AppLimits
         DriftSqlType.int,
         data['${effectivePrefix}secondary_warn_at_minutes_remaining'],
       )!,
+      customWindowStart: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}custom_window_start'],
+      ),
+      customWindowEnd: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}custom_window_end'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -3481,6 +3533,12 @@ class AppLimit extends DataClass implements Insertable<AppLimit> {
   final String actionOnReach;
   final int warnAtMinutesRemaining;
   final int secondaryWarnAtMinutesRemaining;
+
+  /// Inclusive start of a custom limit window (custom type only).
+  final DateTime? customWindowStart;
+
+  /// Inclusive end of a custom limit window (custom type only).
+  final DateTime? customWindowEnd;
   final DateTime createdAt;
   final DateTime updatedAt;
   const AppLimit({
@@ -3492,6 +3550,8 @@ class AppLimit extends DataClass implements Insertable<AppLimit> {
     required this.actionOnReach,
     required this.warnAtMinutesRemaining,
     required this.secondaryWarnAtMinutesRemaining,
+    this.customWindowStart,
+    this.customWindowEnd,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -3508,6 +3568,12 @@ class AppLimit extends DataClass implements Insertable<AppLimit> {
     map['secondary_warn_at_minutes_remaining'] = Variable<int>(
       secondaryWarnAtMinutesRemaining,
     );
+    if (!nullToAbsent || customWindowStart != null) {
+      map['custom_window_start'] = Variable<DateTime>(customWindowStart);
+    }
+    if (!nullToAbsent || customWindowEnd != null) {
+      map['custom_window_end'] = Variable<DateTime>(customWindowEnd);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -3523,6 +3589,12 @@ class AppLimit extends DataClass implements Insertable<AppLimit> {
       actionOnReach: Value(actionOnReach),
       warnAtMinutesRemaining: Value(warnAtMinutesRemaining),
       secondaryWarnAtMinutesRemaining: Value(secondaryWarnAtMinutesRemaining),
+      customWindowStart: customWindowStart == null && nullToAbsent
+          ? const Value.absent()
+          : Value(customWindowStart),
+      customWindowEnd: customWindowEnd == null && nullToAbsent
+          ? const Value.absent()
+          : Value(customWindowEnd),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -3546,6 +3618,10 @@ class AppLimit extends DataClass implements Insertable<AppLimit> {
       secondaryWarnAtMinutesRemaining: serializer.fromJson<int>(
         json['secondaryWarnAtMinutesRemaining'],
       ),
+      customWindowStart: serializer.fromJson<DateTime?>(
+        json['customWindowStart'],
+      ),
+      customWindowEnd: serializer.fromJson<DateTime?>(json['customWindowEnd']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -3564,6 +3640,8 @@ class AppLimit extends DataClass implements Insertable<AppLimit> {
       'secondaryWarnAtMinutesRemaining': serializer.toJson<int>(
         secondaryWarnAtMinutesRemaining,
       ),
+      'customWindowStart': serializer.toJson<DateTime?>(customWindowStart),
+      'customWindowEnd': serializer.toJson<DateTime?>(customWindowEnd),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -3578,6 +3656,8 @@ class AppLimit extends DataClass implements Insertable<AppLimit> {
     String? actionOnReach,
     int? warnAtMinutesRemaining,
     int? secondaryWarnAtMinutesRemaining,
+    Value<DateTime?> customWindowStart = const Value.absent(),
+    Value<DateTime?> customWindowEnd = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
   }) => AppLimit(
@@ -3591,6 +3671,12 @@ class AppLimit extends DataClass implements Insertable<AppLimit> {
         warnAtMinutesRemaining ?? this.warnAtMinutesRemaining,
     secondaryWarnAtMinutesRemaining:
         secondaryWarnAtMinutesRemaining ?? this.secondaryWarnAtMinutesRemaining,
+    customWindowStart: customWindowStart.present
+        ? customWindowStart.value
+        : this.customWindowStart,
+    customWindowEnd: customWindowEnd.present
+        ? customWindowEnd.value
+        : this.customWindowEnd,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -3615,6 +3701,12 @@ class AppLimit extends DataClass implements Insertable<AppLimit> {
           data.secondaryWarnAtMinutesRemaining.present
           ? data.secondaryWarnAtMinutesRemaining.value
           : this.secondaryWarnAtMinutesRemaining,
+      customWindowStart: data.customWindowStart.present
+          ? data.customWindowStart.value
+          : this.customWindowStart,
+      customWindowEnd: data.customWindowEnd.present
+          ? data.customWindowEnd.value
+          : this.customWindowEnd,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -3633,6 +3725,8 @@ class AppLimit extends DataClass implements Insertable<AppLimit> {
           ..write(
             'secondaryWarnAtMinutesRemaining: $secondaryWarnAtMinutesRemaining, ',
           )
+          ..write('customWindowStart: $customWindowStart, ')
+          ..write('customWindowEnd: $customWindowEnd, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -3649,6 +3743,8 @@ class AppLimit extends DataClass implements Insertable<AppLimit> {
     actionOnReach,
     warnAtMinutesRemaining,
     secondaryWarnAtMinutesRemaining,
+    customWindowStart,
+    customWindowEnd,
     createdAt,
     updatedAt,
   );
@@ -3665,6 +3761,8 @@ class AppLimit extends DataClass implements Insertable<AppLimit> {
           other.warnAtMinutesRemaining == this.warnAtMinutesRemaining &&
           other.secondaryWarnAtMinutesRemaining ==
               this.secondaryWarnAtMinutesRemaining &&
+          other.customWindowStart == this.customWindowStart &&
+          other.customWindowEnd == this.customWindowEnd &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -3678,6 +3776,8 @@ class AppLimitsCompanion extends UpdateCompanion<AppLimit> {
   final Value<String> actionOnReach;
   final Value<int> warnAtMinutesRemaining;
   final Value<int> secondaryWarnAtMinutesRemaining;
+  final Value<DateTime?> customWindowStart;
+  final Value<DateTime?> customWindowEnd;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   const AppLimitsCompanion({
@@ -3689,6 +3789,8 @@ class AppLimitsCompanion extends UpdateCompanion<AppLimit> {
     this.actionOnReach = const Value.absent(),
     this.warnAtMinutesRemaining = const Value.absent(),
     this.secondaryWarnAtMinutesRemaining = const Value.absent(),
+    this.customWindowStart = const Value.absent(),
+    this.customWindowEnd = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
@@ -3701,6 +3803,8 @@ class AppLimitsCompanion extends UpdateCompanion<AppLimit> {
     this.actionOnReach = const Value.absent(),
     this.warnAtMinutesRemaining = const Value.absent(),
     this.secondaryWarnAtMinutesRemaining = const Value.absent(),
+    this.customWindowStart = const Value.absent(),
+    this.customWindowEnd = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   }) : packageName = Value(packageName),
@@ -3715,6 +3819,8 @@ class AppLimitsCompanion extends UpdateCompanion<AppLimit> {
     Expression<String>? actionOnReach,
     Expression<int>? warnAtMinutesRemaining,
     Expression<int>? secondaryWarnAtMinutesRemaining,
+    Expression<DateTime>? customWindowStart,
+    Expression<DateTime>? customWindowEnd,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
   }) {
@@ -3729,6 +3835,8 @@ class AppLimitsCompanion extends UpdateCompanion<AppLimit> {
         'warn_at_minutes_remaining': warnAtMinutesRemaining,
       if (secondaryWarnAtMinutesRemaining != null)
         'secondary_warn_at_minutes_remaining': secondaryWarnAtMinutesRemaining,
+      if (customWindowStart != null) 'custom_window_start': customWindowStart,
+      if (customWindowEnd != null) 'custom_window_end': customWindowEnd,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -3743,6 +3851,8 @@ class AppLimitsCompanion extends UpdateCompanion<AppLimit> {
     Value<String>? actionOnReach,
     Value<int>? warnAtMinutesRemaining,
     Value<int>? secondaryWarnAtMinutesRemaining,
+    Value<DateTime?>? customWindowStart,
+    Value<DateTime?>? customWindowEnd,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
   }) {
@@ -3758,6 +3868,8 @@ class AppLimitsCompanion extends UpdateCompanion<AppLimit> {
       secondaryWarnAtMinutesRemaining:
           secondaryWarnAtMinutesRemaining ??
           this.secondaryWarnAtMinutesRemaining,
+      customWindowStart: customWindowStart ?? this.customWindowStart,
+      customWindowEnd: customWindowEnd ?? this.customWindowEnd,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -3794,6 +3906,12 @@ class AppLimitsCompanion extends UpdateCompanion<AppLimit> {
         secondaryWarnAtMinutesRemaining.value,
       );
     }
+    if (customWindowStart.present) {
+      map['custom_window_start'] = Variable<DateTime>(customWindowStart.value);
+    }
+    if (customWindowEnd.present) {
+      map['custom_window_end'] = Variable<DateTime>(customWindowEnd.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -3816,6 +3934,8 @@ class AppLimitsCompanion extends UpdateCompanion<AppLimit> {
           ..write(
             'secondaryWarnAtMinutesRemaining: $secondaryWarnAtMinutesRemaining, ',
           )
+          ..write('customWindowStart: $customWindowStart, ')
+          ..write('customWindowEnd: $customWindowEnd, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -6493,6 +6613,8 @@ typedef $$AppLimitsTableCreateCompanionBuilder =
       Value<String> actionOnReach,
       Value<int> warnAtMinutesRemaining,
       Value<int> secondaryWarnAtMinutesRemaining,
+      Value<DateTime?> customWindowStart,
+      Value<DateTime?> customWindowEnd,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
     });
@@ -6506,6 +6628,8 @@ typedef $$AppLimitsTableUpdateCompanionBuilder =
       Value<String> actionOnReach,
       Value<int> warnAtMinutesRemaining,
       Value<int> secondaryWarnAtMinutesRemaining,
+      Value<DateTime?> customWindowStart,
+      Value<DateTime?> customWindowEnd,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
     });
@@ -6556,6 +6680,16 @@ class $$AppLimitsTableFilterComposer
 
   ColumnFilters<int> get secondaryWarnAtMinutesRemaining => $composableBuilder(
     column: $table.secondaryWarnAtMinutesRemaining,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get customWindowStart => $composableBuilder(
+    column: $table.customWindowStart,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get customWindowEnd => $composableBuilder(
+    column: $table.customWindowEnd,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6620,6 +6754,16 @@ class $$AppLimitsTableOrderingComposer
         builder: (column) => ColumnOrderings(column),
       );
 
+  ColumnOrderings<DateTime> get customWindowStart => $composableBuilder(
+    column: $table.customWindowStart,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get customWindowEnd => $composableBuilder(
+    column: $table.customWindowEnd,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -6675,6 +6819,16 @@ class $$AppLimitsTableAnnotationComposer
         builder: (column) => column,
       );
 
+  GeneratedColumn<DateTime> get customWindowStart => $composableBuilder(
+    column: $table.customWindowStart,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get customWindowEnd => $composableBuilder(
+    column: $table.customWindowEnd,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -6719,6 +6873,8 @@ class $$AppLimitsTableTableManager
                 Value<int> warnAtMinutesRemaining = const Value.absent(),
                 Value<int> secondaryWarnAtMinutesRemaining =
                     const Value.absent(),
+                Value<DateTime?> customWindowStart = const Value.absent(),
+                Value<DateTime?> customWindowEnd = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
               }) => AppLimitsCompanion(
@@ -6731,6 +6887,8 @@ class $$AppLimitsTableTableManager
                 warnAtMinutesRemaining: warnAtMinutesRemaining,
                 secondaryWarnAtMinutesRemaining:
                     secondaryWarnAtMinutesRemaining,
+                customWindowStart: customWindowStart,
+                customWindowEnd: customWindowEnd,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
@@ -6745,6 +6903,8 @@ class $$AppLimitsTableTableManager
                 Value<int> warnAtMinutesRemaining = const Value.absent(),
                 Value<int> secondaryWarnAtMinutesRemaining =
                     const Value.absent(),
+                Value<DateTime?> customWindowStart = const Value.absent(),
+                Value<DateTime?> customWindowEnd = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
               }) => AppLimitsCompanion.insert(
@@ -6757,6 +6917,8 @@ class $$AppLimitsTableTableManager
                 warnAtMinutesRemaining: warnAtMinutesRemaining,
                 secondaryWarnAtMinutesRemaining:
                     secondaryWarnAtMinutesRemaining,
+                customWindowStart: customWindowStart,
+                customWindowEnd: customWindowEnd,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),

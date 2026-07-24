@@ -278,6 +278,16 @@ class AppDetailsScreen extends ConsumerWidget {
                       ),
                     ),
                     const SectionHeader(
+                      title: 'Yearly',
+                      subtitle: 'Last 5 years',
+                    ),
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 16, 16, 12),
+                        child: UsageBarChart(points: data.yearlyBars),
+                      ),
+                    ),
+                    const SectionHeader(
                       title: 'Session history',
                       subtitle: 'Most recent first',
                     ),

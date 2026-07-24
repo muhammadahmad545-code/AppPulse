@@ -2,6 +2,8 @@ import 'package:app_pulse/database/app_database.dart';
 import 'package:app_pulse/features/apps/data/repositories/apps_repository_impl.dart';
 import 'package:app_pulse/features/apps/domain/repositories/apps_repository.dart';
 import 'package:app_pulse/features/apps/domain/usecases/get_installed_apps.dart';
+import 'package:app_pulse/features/dashboard/data/repositories/dashboard_repository_impl.dart';
+import 'package:app_pulse/features/limits/data/repositories/limits_repository_impl.dart';
 import 'package:app_pulse/infrastructure/di/settings_storage.dart';
 import 'package:app_pulse/infrastructure/platform/usage_stats_platform.dart';
 import 'package:app_pulse/services/backup/database_backup_service.dart';
@@ -100,6 +102,7 @@ final limitCheckServiceProvider = Provider<LimitCheckService>((ref) {
     database: ref.watch(databaseProvider),
     settings: ref.watch(settingsStorageProvider),
     notifications: ref.watch(notificationServiceProvider),
+    platform: ref.watch(usageStatsPlatformProvider),
   );
 });
 
@@ -112,4 +115,12 @@ final focusSessionServiceProvider = Provider<FocusSessionService>((ref) {
 
 final databaseBackupServiceProvider = Provider<DatabaseBackupService>((ref) {
   return DatabaseBackupService(ref.watch(databaseProvider));
+});
+
+final limitsRepositoryProvider = Provider((ref) {
+  return LimitsRepositoryImpl(ref.watch(limitsDaoProvider));
+});
+
+final dashboardRepositoryProvider = Provider((ref) {
+  return DashboardRepositoryImpl(ref);
 });

@@ -43,3 +43,11 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Local APK copies / signing (CI uses GitHub secrets)
+*.apk
+*.aab
+/android/key.properties
+/android/app/*.jks
+/android/app/*.keystore
+/android/build/

@@ -126,6 +126,28 @@ final appDetailsProvider = FutureProvider.autoDispose
     );
   }
 
+  final yearlyBars = <BarPoint>[];
+  for (var i = 4; i >= 0; i--) {
+    final year = now.year - i;
+    final start = DateTime(year);
+    final end = DateTime(year, 12, 31, 23, 59, 59, 999);
+    final yearSessions = await sessionsDao.getSessionsInRange(
+      start,
+      end,
+      packageName: packageName,
+    );
+    final ms = yearSessions.fold<int>(
+      0,
+      (s, session) => s + (session.durationMs ?? 0),
+    );
+    yearlyBars.add(
+      BarPoint(
+        label: '$year',
+        duration: Duration(milliseconds: ms),
+      ),
+    );
+  }
+
   final todayMs = today?.totalDurationMs ?? 0;
   final launches = today?.launchCount ?? 0;
   final avgToday = launches == 0
@@ -154,6 +176,7 @@ final appDetailsProvider = FutureProvider.autoDispose
     dailyBars: dailyBars,
     weeklyBars: weeklyBars,
     monthlyBars: monthlyBars,
+    yearlyBars: yearlyBars,
     sessions: sessions,
   );
 });
@@ -177,6 +200,7 @@ final class AppDetailsSnapshot extends Equatable {
     required this.dailyBars,
     required this.weeklyBars,
     required this.monthlyBars,
+    required this.yearlyBars,
     required this.sessions,
   });
 
@@ -197,6 +221,7 @@ final class AppDetailsSnapshot extends Equatable {
   final List<BarPoint> dailyBars;
   final List<BarPoint> weeklyBars;
   final List<BarPoint> monthlyBars;
+  final List<BarPoint> yearlyBars;
   final List<UsageSession> sessions;
 
   String get todayLabel => today.compactLabel;
@@ -220,6 +245,7 @@ final class AppDetailsSnapshot extends Equatable {
         dailyBars,
         weeklyBars,
         monthlyBars,
+        yearlyBars,
         sessions,
       ];
 }

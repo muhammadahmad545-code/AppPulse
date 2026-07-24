@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:app_pulse/core/logging/app_logger.dart';
 import 'package:app_pulse/database/app_database.dart';
 import 'package:app_pulse/infrastructure/di/providers.dart';
@@ -22,9 +24,17 @@ typedef AppBootstrap = ({
 });
 
 /// Initializes Flutter bindings, Hive, Drift, notifications, and tracking.
+///
+/// Non-critical services are wrapped so a single plugin failure cannot prevent
+/// the UI from launching (common cause of "AppPulse keeps stopping").
 Future<AppBootstrap> bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
-  FlutterForegroundTask.initCommunicationPort();
+
+  try {
+    FlutterForegroundTask.initCommunicationPort();
+  } catch (error, stack) {
+    AppLogger.w('ForegroundTask port init skipped', error, stack);
+  }
 
   await Hive.initFlutter();
   final settings = await SettingsStorage.open();
@@ -32,35 +42,56 @@ Future<AppBootstrap> bootstrap() async {
 
   final platform = UsageStatsPlatform();
   final notifications = NotificationService(database: database);
-  await notifications.initialize();
+  try {
+    await notifications.initialize();
+  } catch (error, stack) {
+    AppLogger.w('Notification init skipped', error, stack);
+  }
 
   final tracking = TrackingService(settings: settings, platform: platform);
-  await tracking.initialize();
-
-  final scheduler = WorkmanagerScheduler();
-  await scheduler.initialize();
-  await scheduler.registerPeriodicTasks();
-
-  if (settings.trackingEnabled && await platform.hasUsagePermission()) {
-    final catalog = AppCatalogSyncService(
-      database: database,
-      settings: settings,
-      platform: platform,
-    );
-    final sync = UsageSyncService(
-      database: database,
-      settings: settings,
-      platform: platform,
-    );
-    await catalog.sync(force: true);
-    final result = await sync.sync();
-    await LimitCheckService(
-      database: database,
-      settings: settings,
-      notifications: notifications,
-    ).check(foregroundPackage: result.foregroundPackage);
-    await tracking.startIfPossible();
+  try {
+    await tracking.initialize();
+  } catch (error, stack) {
+    AppLogger.w('TrackingService init skipped', error, stack);
   }
+
+  try {
+    final scheduler = WorkmanagerScheduler();
+    await scheduler.initialize();
+    await scheduler.registerPeriodicTasks();
+  } catch (error, stack) {
+    AppLogger.w('WorkManager init skipped', error, stack);
+  }
+
+  // Defer heavy sync so first frame can paint even if UsageStats is slow/fails.
+  unawaited(() async {
+    try {
+      if (!settings.trackingEnabled) return;
+      if (!await platform.hasUsagePermission()) return;
+
+      final catalog = AppCatalogSyncService(
+        database: database,
+        settings: settings,
+        platform: platform,
+      );
+      final sync = UsageSyncService(
+        database: database,
+        settings: settings,
+        platform: platform,
+      );
+      await catalog.sync(force: true);
+      final result = await sync.sync();
+      await LimitCheckService(
+        database: database,
+        settings: settings,
+        notifications: notifications,
+        platform: platform,
+      ).check(foregroundPackage: result.foregroundPackage);
+      await tracking.startIfPossible();
+    } catch (error, stack) {
+      AppLogger.e('Background boot sync failed', error, stack);
+    }
+  }());
 
   AppLogger.i('Bootstrap complete');
   return (

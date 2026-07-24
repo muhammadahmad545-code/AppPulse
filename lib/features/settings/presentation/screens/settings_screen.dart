@@ -2,6 +2,7 @@ import 'package:app_pulse/core/constants/app_constants.dart';
 import 'package:app_pulse/features/onboarding/presentation/providers/permission_providers.dart';
 import 'package:app_pulse/features/settings/presentation/providers/settings_providers.dart';
 import 'package:app_pulse/features/settings/presentation/providers/theme_providers.dart';
+import 'package:app_pulse/features/settings/presentation/widgets/update_checker.dart';
 import 'package:app_pulse/infrastructure/di/providers.dart';
 import 'package:app_pulse/routing/routes.dart';
 import 'package:flutter/material.dart';
@@ -39,6 +40,7 @@ class SettingsScreen extends ConsumerWidget {
     final defaultHome = ref.watch(defaultHomeProvider);
     final warnPrimary = ref.watch(warnMinutesPrimaryProvider);
     final warnSecondary = ref.watch(warnMinutesSecondaryProvider);
+    final localeCode = ref.watch(appLocaleCodeProvider);
     final permissions = ref.watch(permissionSnapshotProvider);
     final textTheme = Theme.of(context).textTheme;
     final scheme = Theme.of(context).colorScheme;
@@ -121,6 +123,24 @@ class SettingsScreen extends ConsumerWidget {
                         ref.read(defaultHomeProvider.notifier).setHome(value),
                   ),
                 ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.language_outlined),
+                  title: const Text('Language'),
+                  subtitle: Text(_localeLabel(localeCode)),
+                  onTap: () => _pickOption(
+                    context,
+                    title: 'Language',
+                    options: const {
+                      '': 'System default',
+                      'en': 'English',
+                    },
+                    current: localeCode ?? '',
+                    onSelected: (value) => ref
+                        .read(appLocaleCodeProvider.notifier)
+                        .setLocaleCode(value.isEmpty ? null : value),
+                  ),
+                ),
               ],
             ),
           ),
@@ -195,6 +215,28 @@ class SettingsScreen extends ConsumerWidget {
                     ref
                         .read(notificationsEnabledProvider.notifier)
                         .setEnabled(value);
+                  },
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.layers_outlined),
+                  title: const Text('Display over other apps'),
+                  subtitle: const Text(
+                    'Needed for system overlay limit reminders',
+                  ),
+                  onTap: () async {
+                    final platform = ref.read(usageStatsPlatformProvider);
+                    if (await platform.canDrawOverlays()) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Overlay permission already granted'),
+                          ),
+                        );
+                      }
+                      return;
+                    }
+                    await platform.openOverlaySettings();
                   },
                 ),
               ],
@@ -415,6 +457,18 @@ class SettingsScreen extends ConsumerWidget {
                     ),
                     const Divider(height: 1),
                     ListTile(
+                      leading: const Icon(Icons.system_update_alt_rounded),
+                      title: const Text('Check for updates'),
+                      subtitle: const Text('Download from GitHub Releases'),
+                      trailing: const Icon(Icons.chevron_right_rounded),
+                      onTap: () => checkAndPromptForAppUpdate(
+                        context,
+                        ref,
+                        silentIfNone: false,
+                      ),
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
                       leading: const Icon(Icons.privacy_tip_outlined),
                       title: const Text('Privacy policy'),
                       trailing: const Icon(Icons.chevron_right_rounded),
@@ -451,6 +505,14 @@ class SettingsScreen extends ConsumerWidget {
       ThemeMode.system => 'System',
       ThemeMode.light => 'Light',
       ThemeMode.dark => 'Dark',
+    };
+  }
+
+  static String _localeLabel(String? code) {
+    return switch (code) {
+      null || '' => 'System default',
+      'en' => 'English',
+      _ => code,
     };
   }
 

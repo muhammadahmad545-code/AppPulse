@@ -49,41 +49,49 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (Migrator m) async {
           await m.createAll();
-          await customStatement(
-            'CREATE INDEX IF NOT EXISTS idx_sessions_day '
-            'ON usage_sessions (day_key);',
-          );
-          await customStatement(
-            'CREATE INDEX IF NOT EXISTS idx_sessions_package '
-            'ON usage_sessions (package_name);',
-          );
-          await customStatement(
-            'CREATE INDEX IF NOT EXISTS idx_sessions_started '
-            'ON usage_sessions (started_at);',
-          );
-          await customStatement(
-            'CREATE INDEX IF NOT EXISTS idx_daily_day '
-            'ON daily_summaries (day_key);',
-          );
-          await customStatement(
-            'CREATE INDEX IF NOT EXISTS idx_hourly_day '
-            'ON hourly_usage (day_key);',
-          );
+          await _createIndexes();
           AppLogger.i('AppDatabase schema created (v$schemaVersion)');
         },
         onUpgrade: (Migrator m, int from, int to) async {
           AppLogger.i('AppDatabase migrating from $from to $to');
+          if (from < 2) {
+            await m.addColumn(appLimits, appLimits.customWindowStart);
+            await m.addColumn(appLimits, appLimits.customWindowEnd);
+          }
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
         },
       );
+
+  Future<void> _createIndexes() async {
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_sessions_day '
+      'ON usage_sessions (day_key);',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_sessions_package '
+      'ON usage_sessions (package_name);',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_sessions_started '
+      'ON usage_sessions (started_at);',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_daily_day '
+      'ON daily_summaries (day_key);',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_hourly_day '
+      'ON hourly_usage (day_key);',
+    );
+  }
 
   /// Wipes all tracked statistics while preserving installed app metadata
   /// and user limit configuration.

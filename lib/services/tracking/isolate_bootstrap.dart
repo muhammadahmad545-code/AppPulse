@@ -40,6 +40,7 @@ final class IsolateBootstrap {
         database: database,
         settings: settings,
         notifications: notifications,
+        platform: platform,
       );
 
   FocusSessionService get focus => FocusSessionService(
