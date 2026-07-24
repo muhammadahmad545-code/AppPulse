@@ -3,6 +3,7 @@ abstract final class AppConstants {
   static const String appName = 'AppPulse';
   static const String tagline = 'Know Where Your Time Goes.';
   static const String packageName = 'com.apppulse.app_pulse';
+  static const String appIconAsset = 'assets/images/app_icon.png';
 
   static const String databaseName = 'app_pulse.db';
   static const String hiveBoxSettings = 'settings';

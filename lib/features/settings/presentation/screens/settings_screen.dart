@@ -5,6 +5,7 @@ import 'package:app_pulse/features/settings/presentation/providers/theme_provide
 import 'package:app_pulse/features/settings/presentation/widgets/update_checker.dart';
 import 'package:app_pulse/infrastructure/di/providers.dart';
 import 'package:app_pulse/routing/routes.dart';
+import 'package:app_pulse/shared/widgets/brand_mark.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -444,9 +445,10 @@ class SettingsScreen extends ConsumerWidget {
                 return Column(
                   children: [
                     ListTile(
-                      leading: Icon(
-                        Icons.graphic_eq_rounded,
-                        color: scheme.primary,
+                      leading: const BrandMark(
+                        size: 40,
+                        radius: 10,
+                        showShadow: false,
                       ),
                       title: const Text(AppConstants.appName),
                       subtitle: Text(

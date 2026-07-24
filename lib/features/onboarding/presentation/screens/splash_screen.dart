@@ -1,6 +1,7 @@
 import 'package:app_pulse/core/constants/app_constants.dart';
 import 'package:app_pulse/infrastructure/di/providers.dart';
 import 'package:app_pulse/routing/routes.dart';
+import 'package:app_pulse/shared/widgets/brand_mark.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -85,26 +86,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Container(
-                    width: 96,
-                    height: 96,
-                    decoration: BoxDecoration(
-                      color: scheme.primary,
-                      borderRadius: BorderRadius.circular(28),
-                      boxShadow: [
-                        BoxShadow(
-                          color: scheme.primary.withValues(alpha: 0.35),
-                          blurRadius: 28,
-                          offset: const Offset(0, 12),
-                        ),
-                      ],
-                    ),
-                    child: Icon(
-                      Icons.graphic_eq_rounded,
-                      size: 48,
-                      color: scheme.onPrimary,
-                    ),
-                  ),
+                  const BrandMark(size: 96, radius: 28),
                   const SizedBox(height: 28),
                   Text(
                     AppConstants.appName,
