@@ -2,6 +2,16 @@
 # AppPulse end-to-end checks. Sourced by smoke.sh, which provides PKG and the helpers
 # (tap_text, tap_contains, expect, expect_not, scroll_to, shot, back, alive, launch, fail, pass ...).
 
+# The CI emulator screen is small; scroll relative to its real size instead of fixed coordinates.
+read SW SH < <(adb shell wm size | grep -oE '[0-9]+x[0-9]+' | tail -1 | tr 'x' ' ')
+SW=${SW:-1080}; SH=${SH:-1920}
+swipe_up() { adb shell input swipe $((SW / 2)) $((SH * 70 / 100)) $((SW / 2)) $((SH * 30 / 100)) 300; sleep 1; }
+scroll_to() {
+  for i in $(seq 1 8); do has_text "$1" && return 0; swipe_up; done
+  has_text "$1"
+}
+scroll_top() { for i in 1 2 3 4; do adb shell input swipe $((SW / 2)) $((SH * 30 / 100)) $((SW / 2)) $((SH * 75 / 100)) 200; done; sleep 1; }
+
 # Find an app row (one merged accessibility node) by app name plus a word from its detail line.
 _row_xy() {
   python3 - "$1" "$2" <<'PY'
@@ -28,7 +38,7 @@ wait_row() { for i in $(seq 1 ${3:-10}); do has_row "$1" "$2" && return 0; sleep
 tap_row() { local xy; dump; xy=$(_row_xy "$1" "$2"); [ -n "$xy" ] && adb shell input tap $xy && echo "tapped row $1 at $xy"; }
 expect_row() {
   if wait_row "$1" "$2" 8; then pass "$3"; return 0; fi
-  for i in 1 2 3 4 5; do adb shell input swipe 540 1500 540 800 300; sleep 1; has_row "$1" "$2" && { pass "$3"; return 0; }; done
+  for i in 1 2 3 4 5; do swipe_up; has_row "$1" "$2" && { pass "$3"; return 0; }; done
   fail "$3 (no row '$1' with '$2')"; shot "fail-$(echo "$3" | tr -c 'a-zA-Z0-9' '-' | cut -c1-40)"; return 1
 }
 tab() { tap_text "$1"; sleep 3; }
@@ -56,15 +66,15 @@ adb shell appops set "$PKG" GET_USAGE_STATS allow
 launch; sleep 8
 expect "Screen time today" 20 "Today shows screen time once access is granted"
 if has_text "Screen time today: 0m"; then fail "Today still shows zero screen time"; else pass "Today shows non-zero screen time"; fi
-expect_row "Settings" "opens" "Settings appears in Most used"
+expect_row "Settings" "open" "Settings appears in Most used"
 shot e2e-02-today
 scroll_top
 
 # 4. Apps tab lists Settings; open it and set a daily limit.
 tab "Apps"
-expect_row "Settings" "opens" "Settings appears in the Apps list"
+expect_row "Settings" "open" "Settings appears in the Apps list"
 shot e2e-03-apps
-tap_row "Settings" "opens"; sleep 3
+tap_row "Settings" "open"; sleep 3
 expect "Set a daily limit" 10 "app details open with a limit row"
 shot e2e-04-app-detail
 tap_text "Set a daily limit"; sleep 2

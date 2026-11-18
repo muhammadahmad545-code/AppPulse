@@ -122,7 +122,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   BGroup(
                     children: [
                       for (final a in report.apps.take(5))
-                        AppUsageRow(package: a.package, name: repo.infoFrom(apps, a.package).name, duration: a.time, subtitle: '${a.opens} opens · ${a.category}'),
+                        AppUsageRow(package: a.package, name: repo.infoFrom(apps, a.package).name, duration: a.time, subtitle: '${opensLabel(a.opens)} · ${a.category}'),
                       if (report.apps.length > 5)
                         BListRow(dense: true, title: 'and ${report.apps.length - 5} more', subtitle: 'All apps are in the exported file'),
                     ],

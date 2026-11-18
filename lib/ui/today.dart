@@ -54,11 +54,11 @@ class _TodayBody extends ConsumerWidget {
           const SizedBox(height: Gap.md),
           Row(
             children: [
-              Expanded(child: BStatTile(label: 'Unlocks', value: '${day.unlocks}', icon: Icons.lock_open_rounded)),
+              Expanded(child: BStatTile(label: 'Unlocks', value: '${day.unlocks}')),
               const SizedBox(width: Gap.sm),
-              Expanded(child: BStatTile(label: 'App opens', value: '${day.sessions.length}', icon: Icons.touch_app_outlined)),
+              Expanded(child: BStatTile(label: 'Opens', value: '${day.sessions.length}')),
               const SizedBox(width: Gap.sm),
-              Expanded(child: BStatTile(label: 'Longest', value: fmtDuration(day.longest), icon: Icons.timelapse_rounded)),
+              Expanded(child: BStatTile(label: 'Longest', value: fmtDuration(day.longest))),
             ],
           ),
           const BSectionTitle('By hour'),
@@ -80,7 +80,7 @@ class _TodayBody extends ConsumerWidget {
                     package: e.key,
                     name: repo.infoFrom(apps, e.key).name,
                     duration: e.value,
-                    subtitle: '${day.opensFor(e.key)} opens',
+                    subtitle: opensLabel(day.opensFor(e.key)),
                     share: e.value.inSeconds / maxApp,
                     onTap: () => openAppDetail(context, e.key),
                   ),

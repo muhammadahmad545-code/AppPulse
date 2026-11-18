@@ -78,11 +78,11 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
                 children: [
                   Expanded(child: BStatTile(label: 'Total', value: fmtDuration(range.total))),
                   const SizedBox(width: Gap.sm),
-                  Expanded(child: BStatTile(label: 'Daily average', value: fmtDuration(range.dailyAverage))),
+                  Expanded(child: BStatTile(label: 'Average', value: fmtDuration(range.dailyAverage))),
                   const SizedBox(width: Gap.sm),
                   Expanded(
                     child: BStatTile(
-                      label: 'Busiest day',
+                      label: 'Top day',
                       value: values[busiest].inSeconds < 60 ? '–' : DateFormat('EEE').format(days[busiest]),
                       hint: values[busiest].inSeconds < 60 ? null : fmtDuration(values[busiest]),
                     ),
@@ -134,7 +134,7 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
                               ],
                             ),
                             const SizedBox(height: 6),
-                            BProgressBar(value: c.time.inSeconds / (categories.first.time.inSeconds < 1 ? 1 : categories.first.time.inSeconds), height: 4),
+                            ExcludeSemantics(child: BProgressBar(value: c.time.inSeconds / (categories.first.time.inSeconds < 1 ? 1 : categories.first.time.inSeconds), height: 4)),
                           ],
                         ),
                       ),

@@ -37,6 +37,12 @@ android {
             }
         }
     }
+    // Compressed native libraries keep the download small (the updater ships these APKs).
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
     buildTypes {
         release {
             signingConfig = if (System.getenv("RELEASE_KEYSTORE_PATH") != null) signingConfigs.getByName("release") else signingConfigs.getByName("debug")

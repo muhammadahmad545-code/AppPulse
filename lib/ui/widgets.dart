@@ -105,7 +105,7 @@ class AppUsageRow extends StatelessWidget {
                   ],
                   if (share != null) ...[
                     const SizedBox(height: 6),
-                    BProgressBar(value: share!, height: 4),
+                    ExcludeSemantics(child: BProgressBar(value: share!, height: 4)),
                   ],
                 ],
               ),
@@ -176,6 +176,9 @@ class HourlyChart extends StatelessWidget {
     );
   }
 }
+
+/// "1 open", "3 opens".
+String opensLabel(int n) => n == 1 ? '1 open' : '$n opens';
 
 String _hourLabel(int h) {
   final suffix = h < 12 ? 'AM' : 'PM';

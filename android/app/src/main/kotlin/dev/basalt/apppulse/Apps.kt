@@ -57,6 +57,8 @@ object Apps {
         out.remove("com.android.settings")
         out.add("android")
         out.add("com.android.systemui")
+        // The share sheet and app chooser are part of the system, not apps people use.
+        out.add("com.android.intentresolver")
         out.add(ctx.packageName)
         return out.toList()
     }

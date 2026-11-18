@@ -77,7 +77,7 @@ class NativeApi {
       out.add(
         AppInfo(
           package: package,
-          name: (item['name']?.toString().trim().isNotEmpty ?? false) ? item['name'].toString().trim() : prettyPackage(package),
+          name: _label(item['name']?.toString(), package),
           category: (item['category'] as num?)?.toInt() ?? -1,
           system: item['system'] == true,
           launchable: item['launchable'] == true,
@@ -121,4 +121,10 @@ class NativeApi {
       _call<void>('focusStart', {'endAt': endAt.millisecondsSinceEpoch, 'minutes': minutes});
 
   Future<void> focusStop() => _call<void>('focusStop');
+
+  /// Apps without a label report their package name; show something readable instead.
+  static String _label(String? raw, String package) {
+    final name = raw?.trim() ?? '';
+    return name.isEmpty || name == package ? prettyPackage(package) : name;
+  }
 }

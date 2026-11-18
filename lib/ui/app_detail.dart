@@ -83,7 +83,7 @@ class AppDetailScreen extends ConsumerWidget {
               children: [
                 Expanded(child: BStatTile(label: 'Today', value: fmtDuration(todayTotal))),
                 const SizedBox(width: Gap.sm),
-                Expanded(child: BStatTile(label: 'Daily average', value: fmtDuration(weekTotal ~/ 7), hint: 'last 7 days')),
+                Expanded(child: BStatTile(label: 'Average', value: fmtDuration(weekTotal ~/ 7), hint: 'per day')),
                 const SizedBox(width: Gap.sm),
                 Expanded(child: BStatTile(label: '30 days', value: fmtDuration(monthTotal))),
               ],

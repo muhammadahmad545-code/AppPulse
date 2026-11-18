@@ -88,7 +88,7 @@ class _AppsScreenState extends ConsumerState<AppsScreen> {
                             package: e.key,
                             name: repo.infoFrom(apps, e.key).name,
                             duration: e.value,
-                            subtitle: '${opens[e.key] ?? 0} opens · ${repo.infoFrom(apps, e.key).categoryLabel}',
+                            subtitle: '${opensLabel(opens[e.key] ?? 0)} · ${repo.infoFrom(apps, e.key).categoryLabel}',
                             share: e.value.inSeconds / max,
                             onTap: () => openAppDetail(context, e.key),
                           ),
