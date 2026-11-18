@@ -1,0 +1,44 @@
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+/// Small, non-secret settings.
+class Prefs {
+  Prefs(this._p);
+
+  final SharedPreferences _p;
+
+  static Future<Prefs> load() async => Prefs(await SharedPreferences.getInstance());
+
+  bool get onboarded => _p.getBool('onboarded') ?? false;
+  set onboarded(bool v) => _p.setBool('onboarded', v);
+
+  ThemeMode get themeMode => switch (_p.getString('themeMode')) {
+        'light' => ThemeMode.light,
+        'dark' => ThemeMode.dark,
+        _ => ThemeMode.system,
+      };
+  set themeMode(ThemeMode v) => _p.setString('themeMode', v.name);
+
+  /// Daily screen-time goal in minutes (0 = no goal).
+  int get goalMinutes => _p.getInt('goalMinutes') ?? 180;
+  set goalMinutes(int v) => _p.setInt('goalMinutes', v);
+
+  /// Show a reminder on top of an app that reached its limit (needs the overlay permission).
+  bool get limitOverlay => _p.getBool('limitOverlay') ?? false;
+  set limitOverlay(bool v) => _p.setBool('limitOverlay', v);
+
+  /// Days before this one are final in the database; sync rebuilds from here on.
+  DateTime? get syncFrom {
+    final ms = _p.getInt('syncFrom');
+    return ms == null ? null : DateTime.fromMillisecondsSinceEpoch(ms);
+  }
+
+  set syncFrom(DateTime? v) => v == null ? _p.remove('syncFrom') : _p.setInt('syncFrom', v.millisecondsSinceEpoch);
+
+  DateTime? get lastSync {
+    final ms = _p.getInt('lastSync');
+    return ms == null ? null : DateTime.fromMillisecondsSinceEpoch(ms);
+  }
+
+  set lastSync(DateTime? v) => v == null ? _p.remove('lastSync') : _p.setInt('lastSync', v.millisecondsSinceEpoch);
+}

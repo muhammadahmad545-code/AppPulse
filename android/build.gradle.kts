@@ -2,10 +2,6 @@ allprojects {
     repositories {
         google()
         mavenCentral()
-        // Flutter engine AARs (arm/x64 release libs) — not on Maven Central.
-        maven {
-            url = uri("https://storage.googleapis.com/download.flutter.io")
-        }
     }
 }
 

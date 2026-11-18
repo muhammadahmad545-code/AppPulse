@@ -1,129 +1,58 @@
 # AppPulse
 
-**Know Where Your Time Goes.**
+Offline screen-time tracker for Android, part of the Basalt app suite. AppPulse reads Android's own usage
+records (UsageStatsManager), rebuilds every app session from them and keeps the history on the phone.
 
-Production-oriented, fully offline Android app that tracks how much time you spend in every installed application — with analytics, timelines, limits, focus mode, and local reports.
+## Features
 
-> **Platform note:** App usage tracking relies on Android’s `UsageStatsManager`. The codebase is structured for future iOS where feasible, but iOS does not expose equivalent third-party app-usage APIs.
+- **Today**: screen time with a daily goal ring, change vs yesterday, unlocks, app opens, longest session,
+  usage by hour and the most used apps.
+- **Apps**: every app you used today, in the last 7 or 30 days, with search, sort and opens. Each app has a
+  detail page: today, 7-day average, 30-day total, a 7-day chart, today by hour, recent sessions, its limit
+  and a shortcut to Android's app info.
+- **Insights**: overview (total, daily average, busiest day, daily chart, categories, top apps, focus) and a
+  day-by-day timeline of sessions.
+- **App limits**: a daily limit per app. A notification arrives 5 minutes before and when the limit is
+  reached. Optional reminder card drawn over the app (needs "Display over other apps"). Apps are never blocked.
+- **Focus sessions**: 15–90 minute sessions with a countdown notification, a completion notification and a
+  summary of time spent in other apps during the session.
+- **Reports**: CSV or PDF for this week, last 7 days, last 30 days or this month, shared through Android.
+- **Accuracy check**: today's per-app numbers next to Android's own totals.
+- Usage access onboarding with an "Open settings" button that re-checks when you come back; a clear card
+  everywhere data would be while access is missing.
+- System, light and dark themes.
 
----
+## How it works
 
-## Phase status
+- Sessions are rebuilt from resume/pause events: one app in front at a time, screen off/lock ends a session,
+  sessions over midnight are split between days, the home screen, System UI and AppPulse are not counted.
+  Unit tests cover these cases (`test/reconstruct_test.dart`).
+- Android keeps about a week of events, so AppPulse stores sessions in SQLite. It syncs on open and every
+  time you return to the app.
+- Limits are checked by a native WorkManager job every 15 minutes while any limit exists, plus a check timed
+  to the moment the app in front crosses its threshold. Nothing runs in the background without limits.
 
-| Phase | Scope | Status |
-|------:|-------|--------|
-| 1 | Project, deps, structure, theme, routing, DB, DI | Complete |
-| 2 | Permissions, usage engine, background services | Complete |
-| 3 | Dashboard, apps, details, timeline | Complete |
-| 4 | Analytics, charts, reports, export | Complete |
-| 5 | Limits, notifications, focus, settings, tests, docs | Complete |
-| 6 | Gap-close: overlay, custom limits, polish, CI, signing docs | Complete |
+## Updates
 
----
+On every launch (and on return after 15 minutes) the app checks the latest GitHub release of
+`muhammadahmad545-code/AppPulse`, downloads the APK for the phone's ABI, verifies its SHA-256 and opens the
+Android installer. Settings has "Check for updates".
 
 ## Stack
 
-- Flutter 3.44+ / Dart 3.12+
-- Material 3 + Material You (`dynamic_color`)
-- Riverpod + Flutter Hooks
-- GoRouter
-- Drift (SQLite) + Hive (settings)
-- Freezed / JSON Serializable (codegen ready)
-- fl_chart, Google Fonts, Lottie, Shimmer
-- permission_handler, workmanager, flutter_local_notifications, flutter_foreground_task
-- pdf / csv / share_plus / file_picker (reports & backups)
-
----
-
-## Setup
-
-```bash
-flutter pub get
-dart run build_runner build --delete-conflicting-outputs
-flutter run
-```
-
-**Requirements**
-
-- Flutter stable channel
-- Android Studio / SDK (API 26+ devices or emulators)
-- JDK 17
-
-Grant **Usage Access** on first launch (required). Notifications and battery optimization are optional but improve limit/focus reminders and background reliability.
-
----
-
-## Architecture
-
-See [ARCHITECTURE.md](ARCHITECTURE.md) for layering, data model, and background flow.
-
-```
-lib/
-  core/             # constants, errors, logging, extensions
-  shared/           # reusable widgets & models
-  features/         # dashboard, apps, analytics, timeline, focus, …
-    <feature>/
-      presentation/
-      application/
-      domain/
-      data/
-  database/         # Drift tables, DAOs, AppDatabase
-  infrastructure/   # DI, platform adapters
-  services/         # usage, tracking, limits, focus, backup, notifications
-  routing/
-  theme/
-  l10n/
-```
-
-Dependencies flow inward: **Presentation → Application → Domain ← Data**.
-
----
-
-## Database
-
-**Drift (SQLite)** — installed apps, usage sessions, daily/weekly/monthly summaries, hourly buckets, app limits, focus sessions, notification history.
-
-**Hive** — theme, Material You, notification prefs, onboarding flags, date/time formats, default home, warn defaults, sync bookmarks.
-
----
-
-## Features (Phase 5)
-
-- **App limits** — daily/weekly/monthly caps with warn thresholds and reminder actions
-- **Focus mode** — presets/custom timer, apps to avoid, daily focus stats
-- **Notifications** — channels for tracking/limits/focus + on-device history
-- **Settings** — formats, default home, backup/restore, reset/clear, privacy, licenses
-- **In-app reminders** — overlay/confirm/full-screen UI while AppPulse is open
-
----
+Flutter 3.47, Riverpod, sqflite, the shared `basalt` package (theme, widgets, updater), Kotlin for
+UsageStatsManager/PackageManager/WorkManager/notifications, `pdf` and `share_plus` for reports.
 
 ## Build
 
-```bash
-# Debug
-flutter run
+CI (`.github/workflows/build.yml`) runs analyze and tests, builds split-per-ABI release APKs and runs an
+emulator smoke test with end-to-end checks (`scripts/smoke.sh`, `scripts/e2e.sh`). Locally:
 
-# Analyze + tests
-flutter analyze
+```sh
+flutter pub get
 flutter test
-
-# Release APK
-flutter build apk --release
-
-# App Bundle (Play Store)
-flutter build appbundle --release
+flutter build apk --release --split-per-abi
 ```
 
-Replace the debug signing config in `android/app/build.gradle.kts` with your Play upload keystore before publishing.
-
----
-
-## Privacy
-
-AppPulse is offline-first. No Firebase, no backend, no analytics SDKs. All usage data remains on-device unless the user explicitly exports or shares it.
-
-## Status & release
-
-- Feature audit: [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md)
-- Architecture: [ARCHITECTURE.md](ARCHITECTURE.md)
-- Play release signing: [docs/PLAY_RELEASE.md](docs/PLAY_RELEASE.md)
+Release signing comes from the `RELEASE_KEYSTORE_*` environment variables; without them the build is
+debug-signed.
