@@ -136,8 +136,10 @@ back
 
 # 8. Insights: overview and timeline.
 tab "Insights"
-expect "Daily screen time" 10 "insights overview shows daily totals"
+scroll_top
+expect "DAILY SCREEN TIME" 10 "insights overview shows daily totals"
 shot e2e-11-insights
+scroll_top
 tap_text "Timeline"; sleep 3
 expect "sessions ·" 10 "timeline lists the day's sessions"
 shot e2e-12-timeline
@@ -146,7 +148,7 @@ shot e2e-12-timeline
 tab "Settings"
 scroll_to "Accuracy check"
 tap_text "Accuracy check"; sleep 6
-expect "Today by app" 15 "accuracy check compares with Android"
+expect "TODAY BY APP" 15 "accuracy check compares with Android"
 shot e2e-13-accuracy
 back
 
