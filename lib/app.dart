@@ -7,13 +7,13 @@ import 'ui/shell.dart';
 
 const accent = BasaltAccent.sky;
 
-class AppPulseApp extends ConsumerWidget {
-  const AppPulseApp({super.key});
+class ClockedApp extends ConsumerWidget {
+  const ClockedApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp(
-      title: 'AppPulse',
+      title: 'Clocked',
       debugShowCheckedModeBanner: false,
       theme: basaltTheme(Brightness.light, accent),
       darkTheme: basaltTheme(Brightness.dark, accent),
@@ -30,12 +30,12 @@ class _Root extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     if (ref.watch(onboardedProvider)) return const HomeShell();
     return BOnboarding(
-      appName: 'AppPulse',
+      appName: 'Clocked',
       pages: const [
         BOnboardingPage(
           icon: Icons.insights_rounded,
           title: 'See where your time goes',
-          body: 'AppPulse measures how long you spend in each app, hour by hour, using Android\'s own usage records.',
+          body: 'Clocked measures how long you spend in each app, hour by hour, using Android\'s own usage records.',
         ),
         BOnboardingPage(
           icon: Icons.timer_outlined,

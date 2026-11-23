@@ -69,7 +69,7 @@ class RangeUsage {
   late final List<MapEntry<String, Duration>> totals = totalsByPackage(sessions);
   late final Duration total = totalOf(sessions);
 
-  /// Days in the range that AppPulse has data for (not in the future, not before the first record).
+  /// Days in the range that Clocked has data for (not in the future, not before the first record).
   int get trackedDays {
     final today = startOfDay(DateTime.now());
     final first = firstDay;

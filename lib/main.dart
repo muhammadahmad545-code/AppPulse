@@ -14,5 +14,5 @@ Future<void> main() async {
   final prefs = await Prefs.load();
   final db = await AppDb.open();
   final repo = UsageRepo(db: db, prefs: prefs);
-  runApp(ProviderScope(overrides: [repoProvider.overrideWithValue(repo)], child: const AppPulseApp()));
+  runApp(ProviderScope(overrides: [repoProvider.overrideWithValue(repo)], child: const ClockedApp()));
 }

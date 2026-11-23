@@ -69,7 +69,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       await SharePlus.instance.share(
         ShareParams(
           files: [XFile(file.path, mimeType: format == 'csv' ? 'text/csv' : 'application/pdf', name: name)],
-          subject: 'AppPulse report: ${_range.label}',
+          subject: 'Clocked report: ${_range.label}',
         ),
       );
     } catch (e) {

@@ -30,9 +30,9 @@ class AccuracyScreen extends ConsumerWidget {
         padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.sm, Gap.lg, Gap.xxl),
         children: [
           Text(
-            'AppPulse rebuilds each session from Android\'s usage events. Android also keeps its own daily totals. '
+            'Clocked rebuilds each session from Android\'s usage events. Android also keeps its own daily totals. '
             'The two should be close; small gaps come from how each counts the first minutes after midnight and '
-            'apps left open when the screen turns off. The home screen and AppPulse itself are not counted.',
+            'apps left open when the screen turns off. The home screen and Clocked itself are not counted.',
             style: BasaltType.body.copyWith(color: p.textMuted),
           ),
           const SizedBox(height: Gap.md),
@@ -48,7 +48,7 @@ class AccuracyScreen extends ConsumerWidget {
               children: [
                 Row(
                   children: [
-                    Expanded(child: BStatTile(label: 'AppPulse', value: fmtDuration(ours))),
+                    Expanded(child: BStatTile(label: 'Clocked', value: fmtDuration(ours))),
                     const SizedBox(width: Gap.sm),
                     Expanded(child: BStatTile(label: 'Android', value: fmtDuration(android))),
                   ],
@@ -61,7 +61,7 @@ class AccuracyScreen extends ConsumerWidget {
                         package: r.package,
                         name: repo.infoFrom(apps, r.package).name,
                         duration: r.ours,
-                        subtitle: 'AppPulse ${fmtDuration(r.ours)} · Android ${fmtDuration(r.android)}',
+                        subtitle: 'Clocked ${fmtDuration(r.ours)} · Android ${fmtDuration(r.android)}',
                       ),
                   ],
                 ),

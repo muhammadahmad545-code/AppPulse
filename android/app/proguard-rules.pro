@@ -1,4 +1,4 @@
-# AppPulse native code (method channel handler, WorkManager workers).
+# Clocked native code (method channel handler, WorkManager workers).
 -keep class dev.basalt.apppulse.** { *; }
 -keep class * extends androidx.work.ListenableWorker {
     public <init>(android.content.Context, androidx.work.WorkerParameters);

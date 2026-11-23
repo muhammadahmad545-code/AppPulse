@@ -10,7 +10,7 @@ import 'models.dart';
 ///   one session. Back-to-back sessions of the same app less than [mergeGap] apart are joined.
 /// - Screen off, lock and shutdown end the current session. If that app is still on top after the screen
 ///   comes back and Android only reports its pause, the time from wake-up to that pause is counted.
-/// - Excluded packages (home screen, System UI, AppPulse) never get sessions.
+/// - Excluded packages (home screen, System UI, Clocked) never get sessions.
 /// - A session still open at [now] ends at [now].
 List<Session> reconstructSessions(
   List<UsageEvent> events, {

@@ -109,7 +109,7 @@ class LimitsScreen extends ConsumerWidget {
         context,
         title: 'Allow display over other apps',
         message: 'To put a reminder card on top of an app that is past its limit, Android needs the '
-            '"Display over other apps" permission. AppPulse uses it only for that card. '
+            '"Display over other apps" permission. Clocked uses it only for that card. '
             'Notifications work without it.',
         confirmLabel: 'Open settings',
       );
@@ -155,7 +155,7 @@ class LimitsScreen extends ConsumerWidget {
         padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.sm, Gap.lg, 96),
         children: [
           Text(
-            'AppPulse checks every 15 minutes, and right on time while a limited app is open. '
+            'Clocked checks every 15 minutes, and right on time while a limited app is open. '
             'You get a notification 5 minutes before the limit and when you reach it. Apps are never blocked.',
             style: BasaltType.body.copyWith(color: p.textMuted),
           ),

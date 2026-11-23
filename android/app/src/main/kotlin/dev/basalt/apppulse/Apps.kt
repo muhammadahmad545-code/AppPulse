@@ -43,7 +43,7 @@ object Apps {
     }
 
     /**
-     * Packages whose foreground time is not "app usage": the home screen app(s), System UI and AppPulse.
+     * Packages whose foreground time is not "app usage": the home screen app(s), System UI and Clocked.
      * Settings registers a fallback HOME activity, so it is never treated as a launcher.
      */
     @Suppress("DEPRECATION")

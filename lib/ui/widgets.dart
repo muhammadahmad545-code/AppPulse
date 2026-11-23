@@ -208,12 +208,12 @@ class UsageAccessCard extends ConsumerWidget {
           ),
           const SizedBox(height: Gap.md),
           Text(
-            'AppPulse reads Android\'s usage records to measure screen time. They never leave your phone.',
+            'Clocked reads Android\'s usage records to measure screen time. They never leave your phone.',
             style: BasaltType.body.copyWith(color: p.textMuted),
           ),
           if (!compact) ...[
             const SizedBox(height: Gap.md),
-            for (final (i, step) in const ['Tap Open settings', 'Choose AppPulse', 'Turn on Permit usage access, then come back'].indexed)
+            for (final (i, step) in const ['Tap Open settings', 'Choose Clocked', 'Turn on Permit usage access, then come back'].indexed)
               Padding(
                 padding: const EdgeInsets.only(bottom: Gap.xs),
                 child: Text('${i + 1}.  $step', style: BasaltType.body.copyWith(color: p.text, fontSize: 14)),

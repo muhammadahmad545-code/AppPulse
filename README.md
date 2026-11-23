@@ -1,6 +1,8 @@
-# AppPulse
+# Clocked
 
-Offline screen-time tracker for Android, part of the Basalt app suite. AppPulse reads Android's own usage
+*Renamed from **AppPulse** in 2.0.1, so it is not confused with Pulse, the suite's notification inbox.*
+
+Offline screen-time tracker for Android, part of the Basalt app suite. Clocked reads Android's own usage
 records (UsageStatsManager), rebuilds every app session from them and keeps the history on the phone.
 
 ## Features
@@ -25,9 +27,9 @@ records (UsageStatsManager), rebuilds every app session from them and keeps the 
 ## How it works
 
 - Sessions are rebuilt from resume/pause events: one app in front at a time, screen off/lock ends a session,
-  sessions over midnight are split between days, the home screen, System UI and AppPulse are not counted.
+  sessions over midnight are split between days, the home screen, System UI and Clocked are not counted.
   Unit tests cover these cases (`test/reconstruct_test.dart`).
-- Android keeps about a week of events, so AppPulse stores sessions in SQLite. It syncs on open and every
+- Android keeps about a week of events, so Clocked stores sessions in SQLite. It syncs on open and every
   time you return to the app.
 - Limits are checked by a native WorkManager job every 15 minutes while any limit exists, plus a check timed
   to the moment the app in front crosses its threshold. Nothing runs in the background without limits.

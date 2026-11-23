@@ -141,7 +141,7 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
           ),
           const SizedBox(height: Gap.lg),
           Text(
-            'AppPulse doesn\'t block anything. While the session runs it notes the time you spend in other apps, '
+            'Clocked doesn\'t block anything. While the session runs it notes the time you spend in other apps, '
             'so afterwards you can see how focused you stayed.',
             style: BasaltType.body.copyWith(color: p.textMuted, fontSize: 14),
           ),
@@ -178,7 +178,7 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
           const SizedBox(height: Gap.lg),
           Text('Focusing until ${fmtTime(s.plannedEnd)}', style: BasaltType.bodyStrong.copyWith(color: p.text)),
           const SizedBox(height: Gap.xs),
-          Text('You can leave AppPulse. A notification tells you when it\'s done.', textAlign: TextAlign.center, style: BasaltType.caption.copyWith(color: p.textMuted)),
+          Text('You can leave Clocked. A notification tells you when it\'s done.', textAlign: TextAlign.center, style: BasaltType.caption.copyWith(color: p.textMuted)),
           const SizedBox(height: Gap.lg),
           BButton(label: 'Stop session', variant: BButtonVariant.secondary, expand: true, busy: _busy, onPressed: () => _stop(s)),
         ],

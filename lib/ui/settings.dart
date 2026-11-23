@@ -90,7 +90,7 @@ class SettingsScreen extends ConsumerWidget {
             BListRow(
               icon: Icons.query_stats_rounded,
               title: 'Usage access',
-              subtitle: access ? 'AppPulse can read screen time' : 'Required to measure screen time',
+              subtitle: access ? 'Clocked can read screen time' : 'Required to measure screen time',
               trailing: StatusBadge(ok: access, okLabel: 'Allowed', offLabel: 'Needed'),
               onTap: repo.native.openUsageAccess,
             ),

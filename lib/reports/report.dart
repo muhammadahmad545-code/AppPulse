@@ -88,7 +88,7 @@ String _minutes(Duration d) => (d.inSeconds / 60).toStringAsFixed(1);
 String reportCsv(UsageReport r) {
   final b = StringBuffer();
   void row(List<Object> cells) => b.writeln(cells.map((c) => _csvField(c.toString())).join(','));
-  row(['AppPulse report', r.title]);
+  row(['Clocked report', r.title]);
   row(['Period', dayKey(r.from), dayKey(r.lastDay)]);
   row(['Total minutes', _minutes(r.total)]);
   row(['Daily average minutes', _minutes(r.dailyAverage)]);
@@ -111,7 +111,7 @@ String reportCsv(UsageReport r) {
 String _latin1(String s) => String.fromCharCodes(s.runes.map((r) => r <= 0xFF ? r : 0x3F));
 
 Future<Uint8List> reportPdf(UsageReport r) {
-  final doc = pw.Document(title: 'AppPulse report', author: 'AppPulse');
+  final doc = pw.Document(title: 'Clocked report', author: 'Clocked');
   final accent = PdfColor.fromInt(0xFF0369A1);
   final muted = PdfColor.fromInt(0xFF5A606C);
   final line = PdfColor.fromInt(0xFFE3E5E9);
@@ -150,7 +150,7 @@ Future<Uint8List> reportPdf(UsageReport r) {
       pageFormat: PdfPageFormat.a4,
       margin: const pw.EdgeInsets.all(40),
       build: (context) => [
-        pw.Text('AppPulse report', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: accent)),
+        pw.Text('Clocked report', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: accent)),
         pw.SizedBox(height: 4),
         pw.Text(_latin1('${r.title}  |  ${r.period}'), style: pw.TextStyle(fontSize: 11, color: muted)),
         pw.SizedBox(height: 18),
@@ -192,7 +192,7 @@ Future<Uint8List> reportPdf(UsageReport r) {
         ),
         pw.SizedBox(height: 18),
         pw.Text(
-          'Created ${DateFormat('d MMM yyyy, HH:mm').format(r.created)} by AppPulse. Data from Android usage records on this phone.',
+          'Created ${DateFormat('d MMM yyyy, HH:mm').format(r.created)} by Clocked. Data from Android usage records on this phone.',
           style: pw.TextStyle(fontSize: 8, color: muted),
         ),
       ],

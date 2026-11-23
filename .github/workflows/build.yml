@@ -1,4 +1,4 @@
-# AppPulse build pipeline (Basalt template).
+# Clocked build pipeline (Basalt template).
 name: Build
 
 on:
@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  APP: apppulse
+  APP: clocked
   FLUTTER_VERSION: 3.47.9
 
 jobs:

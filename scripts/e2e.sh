@@ -1,5 +1,5 @@
 #!/bin/bash
-# AppPulse end-to-end checks. Sourced by smoke.sh, which provides PKG and the helpers
+# Clocked end-to-end checks. Sourced by smoke.sh, which provides PKG and the helpers
 # (tap_text, tap_contains, expect, expect_not, scroll_to, shot, back, alive, launch, fail, pass ...).
 
 # The CI emulator screen is small; scroll relative to its real size instead of fixed coordinates.
@@ -177,3 +177,7 @@ expect "Stopped" 8 "focus history persists after restart"
 shot e2e-15-after-restart
 back
 alive || fail "app is not running at the end"
+
+# The app is called Clocked everywhere a user can see.
+tap_text "Settings"; sleep 3
+expect "Clocked can read screen time" 10 "Settings uses the new name"

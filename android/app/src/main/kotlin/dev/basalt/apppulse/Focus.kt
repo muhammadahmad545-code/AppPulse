@@ -48,7 +48,7 @@ class FocusEndWorker(ctx: Context, params: WorkerParameters) : Worker(ctx, param
         Notifier.post(
             ctx,
             Notifier.FOCUS_DONE_ID,
-            Notifier.builder(ctx, Notifier.FOCUS, "Focus session complete", "Nice work. Open AppPulse to see how it went."),
+            Notifier.builder(ctx, Notifier.FOCUS, "Focus session complete", "Nice work. Open Clocked to see how it went."),
         )
         return Result.success()
     }

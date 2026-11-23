@@ -124,7 +124,7 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun openUsageAccess() {
-        // Jump straight to AppPulse's row where supported; fall back to the full list.
+        // Jump straight to Clocked's row where supported; fall back to the full list.
         val direct = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS, Uri.parse("package:$packageName"))
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         try {
