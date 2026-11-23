@@ -1,5 +1,5 @@
-import 'package:app_pulse/core/format.dart';
-import 'package:app_pulse/data/models.dart';
+import 'package:clocked/core/format.dart';
+import 'package:clocked/data/models.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

@@ -1,6 +1,6 @@
-import 'package:app_pulse/data/models.dart';
-import 'package:app_pulse/data/repo.dart';
-import 'package:app_pulse/reports/report.dart';
+import 'package:clocked/data/models.dart';
+import 'package:clocked/data/repo.dart';
+import 'package:clocked/reports/report.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

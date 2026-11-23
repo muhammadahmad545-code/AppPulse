@@ -1,6 +1,6 @@
-import 'package:app_pulse/core/format.dart';
-import 'package:app_pulse/data/models.dart';
-import 'package:app_pulse/data/reconstruct.dart';
+import 'package:clocked/core/format.dart';
+import 'package:clocked/data/models.dart';
+import 'package:clocked/data/reconstruct.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 final base = DateTime(2026, 3, 10, 9);

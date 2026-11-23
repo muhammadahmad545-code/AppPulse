@@ -37,7 +37,7 @@ records (UsageStatsManager), rebuilds every app session from them and keeps the 
 ## Updates
 
 On every launch (and on return after 15 minutes) the app checks the latest GitHub release of
-`muhammadahmad545-code/AppPulse`, downloads the APK for the phone's ABI, verifies its SHA-256 and opens the
+`muhammadahmad545-code/clocked`, downloads the APK for the phone's ABI, verifies its SHA-256 and opens the
 Android installer. Settings has "Check for updates".
 
 ## Stack

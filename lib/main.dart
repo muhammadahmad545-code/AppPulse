@@ -10,7 +10,7 @@ import 'state.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  BasaltUpdater.instance.start(owner: 'muhammadahmad545-code', repo: 'AppPulse');
+  BasaltUpdater.instance.start(owner: 'muhammadahmad545-code', repo: 'clocked');
   final prefs = await Prefs.load();
   final db = await AppDb.open();
   final repo = UsageRepo(db: db, prefs: prefs);

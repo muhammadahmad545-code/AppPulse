@@ -1,4 +1,4 @@
-import 'package:app_pulse/ui/widgets.dart';
+import 'package:clocked/ui/widgets.dart';
 import 'package:basalt/basalt.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
