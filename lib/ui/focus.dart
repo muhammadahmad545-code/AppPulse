@@ -41,6 +41,7 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
         await _start();
       });
     }
+  }
 
   @override
   void dispose() {

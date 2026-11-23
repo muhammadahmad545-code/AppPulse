@@ -55,7 +55,7 @@ class MainActivity : FlutterActivity() {
 
     private fun actionOf(intent: Intent?): String? {
         if (intent == null) return null
-        if (intent.action == "android.service.quicksettings.action.QS_TILE_PREFERENCES") return "focus"
+        if (intent.action == "android.service.quicksettings.action.QS_TILE_PREFERENCES") return "focus-screen"
         return intent.getStringExtra(EXTRA_ACTION)
     }
 

@@ -66,13 +66,16 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     if (changed && mounted) bump(ref);
   }
 
-  /// Launcher shortcuts and the tile's long-press: "focus" starts a 25-minute session, "limits" opens limits.
+  /// Launcher shortcuts ("focus" starts a 25-minute session, "limits" opens limits) and the Focus tile's
+  /// long-press ("focus-screen" opens the focus screen).
   void _open(String action) {
     final nav = Navigator.of(context);
     nav.popUntil((r) => r.isFirst);
     switch (action) {
       case 'focus':
         nav.push(MaterialPageRoute<void>(builder: (_) => const FocusScreen(autoStart: true)));
+      case 'focus-screen':
+        nav.push(MaterialPageRoute<void>(builder: (_) => const FocusScreen()));
       case 'limits':
         nav.push(MaterialPageRoute<void>(builder: (_) => const LimitsScreen()));
     }
