@@ -17,6 +17,9 @@ DateTime dayFromKey(String key) {
   return DateTime(int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
 }
 
+/// Monday 00:00 of the week containing [d].
+DateTime mondayOf(DateTime d) => addDays(startOfDay(d), -(d.weekday - DateTime.monday));
+
 bool sameDay(DateTime a, DateTime b) => a.year == b.year && a.month == b.month && a.day == b.day;
 
 /// Compact duration: `2h 5m`, `45m`, `30s`, `0m`.

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/format.dart';
 import '../state.dart';
 import 'accuracy.dart';
+import 'downtime.dart';
 import 'focus.dart';
 import 'limits.dart';
 import 'reports.dart';
@@ -80,6 +81,8 @@ class SettingsScreen extends ConsumerWidget {
     final goal = ref.watch(goalProvider);
     final syncing = ref.watch(syncingProvider);
     final lastSync = repo.prefs.lastSync;
+    final downtime = ref.watch(downtimeProvider);
+    final weekly = ref.watch(weeklySummaryProvider);
 
     return BPage(
       title: 'Settings',
@@ -97,7 +100,7 @@ class SettingsScreen extends ConsumerWidget {
             BListRow(
               icon: Icons.notifications_none_rounded,
               title: 'Notifications',
-              subtitle: 'Limit reminders and focus timer',
+              subtitle: 'Limits, downtime, focus timer and weekly summary',
               trailing: StatusBadge(ok: notifications, okLabel: 'Allowed', offLabel: 'Off'),
               onTap: () async {
                 if (notifications || !await repo.native.requestNotifications()) {
@@ -126,6 +129,15 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => _push(context, const LimitsScreen()),
             ),
             BListRow(
+              icon: Icons.bedtime_outlined,
+              title: 'Downtime',
+              subtitle: !downtime.enabled
+                  ? 'Off'
+                  : '${fmtWindow(context, downtime)} · ${downtime.apps.length} ${downtime.apps.length == 1 ? 'app' : 'apps'}',
+              chevron: true,
+              onTap: () => _push(context, const DowntimeScreen()),
+            ),
+            BListRow(
               icon: Icons.self_improvement_rounded,
               title: 'Focus mode',
               subtitle: 'Timed sessions with a summary',
@@ -145,6 +157,66 @@ class SettingsScreen extends ConsumerWidget {
               subtitle: 'Compare today with Android\'s own totals',
               chevron: true,
               onTap: () => _push(context, const AccuracyScreen()),
+            ),
+          ],
+        ),
+        BGroup(
+          title: 'Weekly summary',
+          children: [
+            BListRow(
+              icon: Icons.calendar_view_week_rounded,
+              title: 'Monday summary',
+              subtitle: 'Last week\'s total, daily average, change and top app, every Monday morning',
+              maxSubtitleLines: 3,
+              trailing: Switch(
+                value: weekly,
+                onChanged: (v) async {
+                  repo.prefs.weeklySummary = v;
+                  ref.read(weeklySummaryProvider.notifier).state = v;
+                  await repo.pushWeekly();
+                  if (v && !await repo.native.notificationsEnabled()) await repo.native.requestNotifications();
+                },
+              ),
+            ),
+            BListRow(
+              icon: Icons.notifications_active_outlined,
+              title: 'Send a preview now',
+              subtitle: 'Shows last week\'s summary as a notification',
+              onTap: () async {
+                if (!await repo.native.notificationsEnabled() && !await repo.native.requestNotifications()) {
+                  if (context.mounted) {
+                    BToast.show(context, 'Notifications are off', actionLabel: 'Settings', onAction: repo.native.openNotificationSettings);
+                  }
+                  return;
+                }
+                final full = await repo.native.weeklyPreview();
+                if (context.mounted) BToast.show(context, full ? 'Summary sent' : 'Not enough data from last week yet');
+              },
+            ),
+          ],
+        ),
+        BGroup(
+          title: 'Quick access',
+          children: const [
+            BListRow(
+              icon: Icons.widgets_outlined,
+              title: 'Home-screen widget',
+              subtitle: 'Long-press your home screen, tap Widgets and pick Clocked. It shows today\'s screen time, '
+                  'the change against yesterday and your top 3 apps.',
+              maxSubtitleLines: 4,
+            ),
+            BListRow(
+              icon: Icons.timer_outlined,
+              title: 'Focus tile',
+              subtitle: 'Edit Quick Settings and drag in Focus. Tap it to start a 25-minute focus session, tap again '
+                  'to stop. Long-press it to open the focus screen.',
+              maxSubtitleLines: 4,
+            ),
+            BListRow(
+              icon: Icons.touch_app_outlined,
+              title: 'App shortcuts',
+              subtitle: 'Long-press the Clocked icon for Start focus and App limits.',
+              maxSubtitleLines: 3,
             ),
           ],
         ),

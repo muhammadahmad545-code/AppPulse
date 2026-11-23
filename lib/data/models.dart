@@ -153,3 +153,52 @@ class FocusSession {
   Duration get planned => plannedEnd.difference(start);
   Duration get actual => (end ?? DateTime.now()).difference(start);
 }
+
+/// A daily downtime window (minutes after midnight; it may cross midnight) and the apps it applies to.
+/// Opening one of those apps inside the window gets a gentle notification. Nothing is blocked.
+class Downtime {
+  const Downtime({this.enabled = false, this.start = 23 * 60, this.end = 7 * 60, this.apps = const {}});
+
+  final bool enabled;
+  final int start;
+  final int end;
+
+  /// Package -> app name.
+  final Map<String, String> apps;
+
+  Downtime copyWith({bool? enabled, int? start, int? end, Map<String, String>? apps}) => Downtime(
+        enabled: enabled ?? this.enabled,
+        start: start ?? this.start,
+        end: end ?? this.end,
+        apps: apps ?? this.apps,
+      );
+
+  /// Length of the window, wrapping past midnight.
+  Duration get length => Duration(minutes: ((end - start) % (24 * 60) + 24 * 60) % (24 * 60));
+
+  bool get crossesMidnight => end < start;
+
+  /// True when [minute] (0-1439) is inside [start, end).
+  bool contains(int minute) {
+    if (start == end) return false;
+    if (start < end) return minute >= start && minute < end;
+    return minute >= start || minute < end;
+  }
+
+  Map<String, Object?> toJson() => {
+        'enabled': enabled,
+        'start': start,
+        'end': end,
+        'apps': [for (final e in apps.entries) {'package': e.key, 'name': e.value}],
+      };
+
+  factory Downtime.fromJson(Map<String, Object?> j) => Downtime(
+        enabled: j['enabled'] == true,
+        start: (j['start'] as num?)?.toInt() ?? 23 * 60,
+        end: (j['end'] as num?)?.toInt() ?? 7 * 60,
+        apps: {
+          for (final a in (j['apps'] as List? ?? const []))
+            if (a is Map && a['package'] is String) a['package'] as String: (a['name'] ?? a['package']).toString(),
+        },
+      );
+}

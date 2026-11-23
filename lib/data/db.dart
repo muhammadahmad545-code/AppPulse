@@ -202,6 +202,12 @@ class AppDb {
     return rows.map(_focus).toList();
   }
 
+  /// The session that started at [start] (sessions are matched across the app and the tile by start time).
+  Future<FocusSession?> focusByStart(DateTime start) async {
+    final rows = await _db.query('focus', where: 'start_ms = ?', whereArgs: [start.millisecondsSinceEpoch], limit: 1);
+    return rows.isEmpty ? null : _focus(rows.first);
+  }
+
   Future<int> startFocus(DateTime start, DateTime plannedEnd) => _db.insert('focus', {
         'start_ms': start.millisecondsSinceEpoch,
         'planned_end_ms': plannedEnd.millisecondsSinceEpoch,

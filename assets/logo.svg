@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+<defs>
+<radialGradient id="glow" cx="0.5" cy="0.52" r="0.6"><stop offset="0" stop-color="#38BDF8" stop-opacity="0.24"/><stop offset="1" stop-color="#38BDF8" stop-opacity="0"/></radialGradient>
+<linearGradient id="bezel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7DD3FC"/><stop offset="1" stop-color="#0284C7"/></linearGradient>
+<linearGradient id="metal" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7DD3FC"/><stop offset="1" stop-color="#0369A1"/></linearGradient>
+<linearGradient id="crown" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#BAE6FD"/><stop offset="1" stop-color="#38BDF8"/></linearGradient>
+<radialGradient id="face" cx="0.5" cy="0.4" r="0.7"><stop offset="0" stop-color="#0F2533"/><stop offset="1" stop-color="#08141C"/></radialGradient>
+</defs>
+<rect width="1024" height="1024" fill="#0C0D10"/>
+<rect width="1024" height="1024" fill="url(#glow)"/>
+<g id="mark">
+<!-- trail -->
+<g transform="rotate(42 730.1 317.7)"><rect x="704.1" y="283.7" width="52" height="56" rx="12" fill="url(#metal)"/></g>
+<rect x="476" y="190" width="72" height="60" rx="14" fill="url(#metal)"/>
+<rect x="420" y="146" width="184" height="64" rx="28" fill="url(#crown)"/>
+<circle cx="512" cy="560" r="326" fill="url(#bezel)"/>
+<circle cx="512" cy="560" r="284" fill="url(#face)"/>
+<line x1="512.0" y1="312.0" x2="512.0" y2="284.0" stroke="#7DD3FC" stroke-width="12" stroke-linecap="round" opacity="1"/><line x1="760.0" y1="560.0" x2="788.0" y2="560.0" stroke="#7DD3FC" stroke-width="12" stroke-linecap="round" opacity="1"/><line x1="512.0" y1="808.0" x2="512.0" y2="836.0" stroke="#7DD3FC" stroke-width="12" stroke-linecap="round" opacity="1"/><line x1="264.0" y1="560.0" x2="236.0" y2="560.0" stroke="#7DD3FC" stroke-width="12" stroke-linecap="round" opacity="1"/>
+<circle cx="512" cy="560" r="172" fill="none" stroke="#123445" stroke-width="92"/><path d="M522.5 388.3 A172 172 0 0 1 606.9 703.4" fill="none" stroke="#38BDF8" stroke-width="92" stroke-linecap="butt"/><path d="M588.7 713.9 A172 172 0 0 1 372.0 659.9" fill="none" stroke="#0EA5E9" stroke-width="92" stroke-linecap="butt"/><path d="M360.8 642.1 A172 172 0 0 1 348.9 505.4" fill="none" stroke="#0369A1" stroke-width="92" stroke-linecap="butt"/><path d="M356.8 486.0 A172 172 0 0 1 417.1 416.6" fill="none" stroke="#BAE6FD" stroke-width="92" stroke-linecap="butt"/>
+<line x1="512" y1="560" x2="576.2" y2="488.7" stroke="#E0F2FE" stroke-width="24" stroke-linecap="round"/>
+<circle cx="512" cy="560" r="34" fill="#E0F2FE"/>
+<circle cx="512" cy="560" r="14" fill="#0369A1"/>
+</g>
+</svg>

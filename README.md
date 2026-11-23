@@ -1,9 +1,28 @@
+<p align="center"><img src="assets/logo.png" width="112" alt="Clocked logo"></p>
+
 # Clocked
 
 *Renamed from **AppPulse** in 2.0.1, so it is not confused with Pulse, the suite's notification inbox.*
 
 Offline screen-time tracker for Android, part of the Basalt app suite. Clocked reads Android's own usage
 records (UsageStatsManager), rebuilds every app session from them and keeps the history on the phone.
+
+## What's new in 2.1
+
+- **New logo**: a stopwatch whose face is a donut of usage segments in sky tones.
+- **Home-screen widget**: today's screen time, the change against yesterday and your top 3 apps with their
+  minutes. Tap it to open Clocked. It refreshes whenever the app syncs and on the background check.
+- **Focus tile** in Quick Settings: tap to start a 25-minute focus session, tap again to stop it. While a
+  session runs the tile is lit and shows the minutes left. The app and the tile share one session, so the
+  focus screen always shows what the tile started or stopped. Long-press the tile to open the focus screen.
+- **Launcher shortcuts**: long-press the icon for *Start focus* (starts a 25-minute session) and *App limits*.
+- **Downtime**: pick a daily window (for example 23:00–07:00, across midnight) and apps. Opening one of those
+  apps in the window gets a gentle "It's downtime" notification, at most once per app every 10 minutes.
+  Nothing is blocked. Settings → Downtime, or App limits → Downtime schedule.
+- **Weekly summary**: every Monday morning (on by default) a notification with last week's total, the daily
+  average, the change from the week before and the top app. Scheduled natively, so it arrives with the app
+  closed. Settings → Weekly summary also has *Send a preview now*.
+- Settings has a *Quick access* group that explains the widget, the tile and the shortcuts.
 
 ## Features
 
@@ -31,8 +50,35 @@ records (UsageStatsManager), rebuilds every app session from them and keeps the 
   Unit tests cover these cases (`test/reconstruct_test.dart`).
 - Android keeps about a week of events, so Clocked stores sessions in SQLite. It syncs on open and every
   time you return to the app.
-- Limits are checked by a native WorkManager job every 15 minutes while any limit exists, plus a check timed
-  to the moment the app in front crosses its threshold. Nothing runs in the background without limits.
+- Limits and downtime are checked by a native WorkManager job every 15 minutes while any limit, a downtime
+  schedule or the widget exists, plus a check timed to the moment the app in front crosses its threshold.
+  Nothing runs in the background otherwise (apart from the Monday summary alarm, if it is on).
+- The running focus session lives natively (shared with the Quick Settings tile); the app imports
+  sessions the tile started or stopped when it opens, or immediately if it is already open.
+
+## Permissions — and why
+
+| Permission | Why |
+|---|---|
+| Usage access (`PACKAGE_USAGE_STATS`) | Reading Android's own app-usage records. Granted by you in Settings. |
+| Notifications | Limit reminders, downtime nudges, the focus timer and the weekly summary. |
+| Display over other apps (optional) | Only for the reminder card over an app that is past its limit. |
+| Run at startup (`RECEIVE_BOOT_COMPLETED`) | Setting the Monday summary alarm again after a restart. |
+| Internet | Only the update check against GitHub releases. |
+| Install packages | Opening the Android installer for a downloaded update. |
+
+## Honest limits
+
+- Clocked never blocks an app. Limits and downtime are reminders; you decide.
+- Background checks (limits, downtime, the widget) run through WorkManager every 15 minutes, plus a timed
+  check while a limited or downtime app stays open. A downtime nudge can arrive a few minutes after you
+  open the app, and the widget can be up to about 15 minutes behind while the app is closed.
+- The widget shows the app's own numbers after each sync; between syncs the background check recomputes
+  them natively, which can differ from the app by a minute or so.
+- Android keeps roughly a week of usage records. The weekly summary reads last week from Android; "the
+  week before" comes from Clocked's saved history or the previous summary, and is left out when neither
+  exists. The Monday alarm is inexact, so it can arrive a little after 09:00.
+- The Focus tile always starts a 25-minute session; pick other lengths in the app.
 
 ## Updates
 
@@ -43,7 +89,8 @@ Android installer. Settings has "Check for updates".
 ## Stack
 
 Flutter 3.47, Riverpod, sqflite, the shared `basalt` package (theme, widgets, updater), Kotlin for
-UsageStatsManager/PackageManager/WorkManager/notifications, `pdf` and `share_plus` for reports.
+UsageStatsManager/PackageManager/WorkManager/AlarmManager/notifications, the home-screen widget, the
+Quick Settings tile and launcher shortcuts, `pdf` and `share_plus` for reports.
 
 ## Build
 

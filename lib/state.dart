@@ -18,6 +18,8 @@ final syncingProvider = StateProvider<bool>((ref) => false);
 final themeModeProvider = StateProvider<ThemeMode>((ref) => ref.watch(prefsProvider).themeMode);
 final onboardedProvider = StateProvider<bool>((ref) => ref.watch(prefsProvider).onboarded);
 final goalProvider = StateProvider<int>((ref) => ref.watch(prefsProvider).goalMinutes);
+final downtimeProvider = StateProvider<Downtime>((ref) => ref.watch(prefsProvider).downtime);
+final weeklySummaryProvider = StateProvider<bool>((ref) => ref.watch(prefsProvider).weeklySummary);
 
 final accessProvider = FutureProvider<bool>((ref) {
   ref.watch(revisionProvider);

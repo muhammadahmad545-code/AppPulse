@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Clocked</string>
+    <string name="widget_title">Screen time today</string>
+    <string name="widget_loading">Updating…</string>
+    <string name="widget_description">Today\'s screen time, the change against yesterday and your top 3 apps</string>
+    <string name="widget_label">Screen time</string>
+    <string name="tile_label">Focus</string>
+</resources>

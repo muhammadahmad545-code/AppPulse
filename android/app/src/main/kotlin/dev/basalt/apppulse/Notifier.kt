@@ -13,6 +13,8 @@ object Notifier {
     const val LIMITS = "limits"
     const val FOCUS = "focus"
     const val FOCUS_ONGOING = "focus_ongoing"
+    const val DOWNTIME = "downtime"
+    const val WEEKLY = "weekly"
     const val FOCUS_ONGOING_ID = 2001
     const val FOCUS_DONE_ID = 2002
 
@@ -32,6 +34,16 @@ object Notifier {
             NotificationChannel(FOCUS_ONGOING, "Focus timer", NotificationManager.IMPORTANCE_LOW).apply {
                 description = "Quiet countdown while a focus session runs"
                 setShowBadge(false)
+            },
+        )
+        nm.createNotificationChannel(
+            NotificationChannel(DOWNTIME, "Downtime", NotificationManager.IMPORTANCE_DEFAULT).apply {
+                description = "A gentle nudge when you open a downtime app inside your downtime window"
+            },
+        )
+        nm.createNotificationChannel(
+            NotificationChannel(WEEKLY, "Weekly summary", NotificationManager.IMPORTANCE_DEFAULT).apply {
+                description = "Last week's screen time, every Monday morning"
             },
         )
     }

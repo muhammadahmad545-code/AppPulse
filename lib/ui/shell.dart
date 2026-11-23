@@ -4,9 +4,12 @@ import 'package:basalt/basalt.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../data/native.dart';
 import '../state.dart';
 import 'apps.dart';
+import 'focus.dart';
 import 'insights.dart';
+import 'limits.dart';
 import 'settings.dart';
 import 'today.dart';
 
@@ -27,7 +30,18 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   void initState() {
     super.initState();
     _lifecycle = AppLifecycleListener(onResume: _refresh);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _refresh());
+    NativeApi.listen((method, args) {
+      if (!mounted) return;
+      if (method == 'focusChanged') unawaited(_syncFocus());
+      if (method == 'action' && args is String) _open(args);
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final repo = ref.read(repoProvider);
+      final action = await repo.native.takeAction();
+      if (action != null && mounted) _open(action);
+      await _refresh();
+      unawaited(repo.pushNative());
+    });
   }
 
   @override
@@ -39,10 +53,29 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   /// On open and every return to the app: re-check permissions, sync, settle focus, run a limit check.
   Future<void> _refresh() async {
     final repo = ref.read(repoProvider);
+    await _syncFocus();
     await syncNow(ref);
     final finished = await repo.settleFocus();
     if (finished != null && mounted) bump(ref);
     unawaited(repo.pushLimits());
+  }
+
+  /// Picks up sessions the Quick Settings tile started or stopped.
+  Future<void> _syncFocus() async {
+    final changed = await ref.read(repoProvider).reconcileFocus();
+    if (changed && mounted) bump(ref);
+  }
+
+  /// Launcher shortcuts and the tile's long-press: "focus" starts a 25-minute session, "limits" opens limits.
+  void _open(String action) {
+    final nav = Navigator.of(context);
+    nav.popUntil((r) => r.isFirst);
+    switch (action) {
+      case 'focus':
+        nav.push(MaterialPageRoute<void>(builder: (_) => const FocusScreen(autoStart: true)));
+      case 'limits':
+        nav.push(MaterialPageRoute<void>(builder: (_) => const LimitsScreen()));
+    }
   }
 
   @override

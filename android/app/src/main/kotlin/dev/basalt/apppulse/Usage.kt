@@ -100,14 +100,17 @@ object Usage {
 
     class Today(val totals: Map<String, Long>, val foreground: String?)
 
+    /** Today's foreground time per package and the app in front now. */
+    fun today(ctx: Context, now: Long = System.currentTimeMillis()): Today = between(ctx, startOfDay(now), now)
+
     /**
-     * Today's foreground time per package, using the same rules as the Dart reconstruction
+     * Foreground time per package in [from, to), using the same rules as the Dart reconstruction
      * (one foreground app at a time; screen off, lock and shutdown end the current session).
+     * [Today.foreground] is the app still open at [to].
      */
-    fun today(ctx: Context, now: Long = System.currentTimeMillis()): Today {
-        if (!hasAccess(ctx)) return Today(emptyMap(), null)
-        val dayStart = startOfDay(now)
-        val events = manager(ctx).queryEvents(dayStart - 3 * 3_600_000L, now)
+    fun between(ctx: Context, from: Long, to: Long): Today {
+        if (!hasAccess(ctx) || to <= from) return Today(emptyMap(), null)
+        val events = manager(ctx).queryEvents(from - 3 * 3_600_000L, to)
         val e = UsageEvents.Event()
         val totals = HashMap<String, Long>()
         var open: String? = null
@@ -115,13 +118,15 @@ object Usage {
         val activities = HashSet<String>()
         fun close(at: Long) {
             val p = open ?: return
-            val s = maxOf(since, dayStart)
-            if (at > s) totals[p] = (totals[p] ?: 0L) + (at - s)
+            val s = maxOf(since, from)
+            val end = minOf(at, to)
+            if (end > s) totals[p] = (totals[p] ?: 0L) + (end - s)
             open = null
             activities.clear()
         }
         while (events.hasNextEvent()) {
             events.getNextEvent(e)
+            if (e.timeStamp > to) break
             val p = e.packageName ?: continue
             val c = e.className ?: ""
             when (e.eventType) {
@@ -141,7 +146,38 @@ object Usage {
             }
         }
         val foreground = open
-        close(now)
+        close(to)
         return Today(totals, foreground)
+    }
+
+    /** [between] without the home screen, System UI and Clocked, like the app's own numbers. */
+    fun appTotals(ctx: Context, from: Long, to: Long): Map<String, Long> {
+        val excluded = Apps.excludedPackages(ctx).toSet()
+        return between(ctx, from, to).totals.filterKeys { it !in excluded && it.isNotEmpty() }
+    }
+
+    fun label(ctx: Context, pkg: String): String = try {
+        val pm = ctx.packageManager
+        pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString().ifBlank { pkg }
+    } catch (_: Exception) {
+        pkg.substringAfterLast('.').replaceFirstChar { it.uppercase() }
+    }
+
+    /** Compact duration like the app: `2h 5m`, `45m`, `0m`. */
+    fun fmt(ms: Long): String {
+        val m = ms / 60_000L
+        if (m <= 0) return "0m"
+        return if (m >= 60) (if (m % 60 == 0L) "${m / 60}h" else "${m / 60}h ${m % 60}m") else "${m}m"
+    }
+
+    /** "12% more than yesterday", or null when there is too little to compare with (same rule as the app). */
+    fun change(now: Long, before: Long, against: String): String? {
+        if (before < 60_000L) return null
+        val pct = Math.round((now - before).toDouble() / before * 100).toInt()
+        return when {
+            pct == 0 -> "Same as $against"
+            pct > 0 -> "$pct% more than $against"
+            else -> "${-pct}% less than $against"
+        }
     }
 }

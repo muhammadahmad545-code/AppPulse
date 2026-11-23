@@ -1,4 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+
+import 'models.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Small, non-secret settings.
@@ -41,4 +45,20 @@ class Prefs {
   }
 
   set lastSync(DateTime? v) => v == null ? _p.remove('lastSync') : _p.setInt('lastSync', v.millisecondsSinceEpoch);
+
+  /// Monday-morning summary notification (on unless turned off).
+  bool get weeklySummary => _p.getBool('weeklySummary') ?? true;
+  set weeklySummary(bool v) => _p.setBool('weeklySummary', v);
+
+  Downtime get downtime {
+    final raw = _p.getString('downtime');
+    if (raw == null) return const Downtime();
+    try {
+      return Downtime.fromJson(jsonDecode(raw) as Map<String, Object?>);
+    } catch (_) {
+      return const Downtime();
+    }
+  }
+
+  set downtime(Downtime v) => _p.setString('downtime', jsonEncode(v.toJson()));
 }

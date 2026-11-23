@@ -3,6 +3,9 @@ package dev.basalt.apppulse
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.pm.ShortcutInfo
+import android.content.pm.ShortcutManager
+import android.graphics.drawable.Icon
 import android.net.Uri
 import android.os.Build
 import android.os.Handler
@@ -15,16 +18,65 @@ import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import java.util.concurrent.Executors
 
-/** Hosts the Flutter UI and the "dev.basalt.apppulse/native" method channel. */
+/**
+ * Hosts the Flutter UI and the "dev.basalt.apppulse/native" method channel. Launcher shortcuts and the
+ * Focus tile's long-press open the app with an action ("focus", "limits") that Dart picks up.
+ */
 class MainActivity : FlutterActivity() {
     private val io = Executors.newSingleThreadExecutor()
     private val main = Handler(Looper.getMainLooper())
     private var pendingNotificationResult: MethodChannel.Result? = null
+    private var channel: MethodChannel? = null
+    private var pendingAction: String? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
-            .setMethodCallHandler { call, result -> handle(call, result) }
+        pendingAction = actionOf(intent)
+        channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).apply {
+            setMethodCallHandler { call, result -> handle(call, result) }
+        }
+        Focus.listener = focusListener
+    }
+
+    private val focusListener: () -> Unit = { channel?.invokeMethod("focusChanged", null) }
+
+    override fun onDestroy() {
+        if (Focus.listener === focusListener) Focus.listener = null
+        super.onDestroy()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        val action = actionOf(intent) ?: return
+        setIntent(intent)
+        val ch = channel
+        if (ch == null) pendingAction = action else ch.invokeMethod("action", action)
+    }
+
+    private fun actionOf(intent: Intent?): String? {
+        if (intent == null) return null
+        if (intent.action == "android.service.quicksettings.action.QS_TILE_PREFERENCES") return "focus"
+        return intent.getStringExtra(EXTRA_ACTION)
+    }
+
+    private fun installShortcuts(): Boolean {
+        val manager = getSystemService(ShortcutManager::class.java) ?: return false
+        fun shortcut(id: String, label: String, long: String, icon: Int) = ShortcutInfo.Builder(this, id)
+            .setShortLabel(label)
+            .setLongLabel(long)
+            .setIcon(Icon.createWithResource(this, icon))
+            .setIntent(
+                Intent(Intent.ACTION_MAIN).setClass(this, MainActivity::class.java).putExtra(EXTRA_ACTION, id)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP),
+            )
+            .build()
+        return runCatching {
+            manager.dynamicShortcuts = listOf(
+                shortcut("focus", "Start focus", "Start a 25-minute focus", R.drawable.ic_shortcut_focus),
+                shortcut("limits", "App limits", "App limits", R.drawable.ic_shortcut_limits),
+            )
+            true
+        }.getOrDefault(false)
     }
 
     /** Runs [block] off the main thread (usage queries and icons can be slow) and replies on the main thread. */
@@ -105,17 +157,42 @@ class MainActivity : FlutterActivity() {
                     result.success(null)
                 }
                 "checkLimits" -> background(result) {
-                    LimitChecker.run(ctx)
+                    LimitChecker.run(ctx, refreshWidget = false)
                     null
                 }
                 "focusStart" -> {
-                    Focus.start(ctx, call.long("endAt"), call.argument<Int>("minutes") ?: 0)
+                    Focus.start(ctx, call.long("startAt"), call.long("endAt"), call.argument<Int>("minutes") ?: 0)
                     result.success(null)
                 }
                 "focusStop" -> {
-                    Focus.stop(ctx)
+                    Focus.stop(ctx, fromApp = true)
                     result.success(null)
                 }
+                "focusState" -> result.success(Focus.state(ctx))
+                "focusAck" -> {
+                    val starts = (call.argument<List<Number>>("starts") ?: emptyList()).map { it.toLong() }
+                    Focus.ack(ctx, starts)
+                    result.success(null)
+                }
+                "takeAction" -> {
+                    result.success(pendingAction)
+                    pendingAction = null
+                }
+                "installShortcuts" -> result.success(installShortcuts())
+                "updateWidget" -> {
+                    UsageWidget.save(ctx, call.argument<String>("json") ?: "{}")
+                    result.success(null)
+                }
+                "syncDowntime" -> {
+                    Downtime.save(ctx, call.argument<String>("json") ?: "{}")
+                    LimitScheduler.schedule(ctx)
+                    result.success(null)
+                }
+                "weeklySummary" -> {
+                    WeeklySummary.configure(ctx, call.argument<Boolean>("enabled") ?: true, call.argument<String>("weeks"))
+                    result.success(null)
+                }
+                "weeklyPreview" -> background(result) { WeeklySummary.previewOrExplain(ctx) }
                 else -> result.notImplemented()
             }
         } catch (e: Exception) {
@@ -159,6 +236,7 @@ class MainActivity : FlutterActivity() {
 
     companion object {
         const val CHANNEL = "dev.basalt.apppulse/native"
+        const val EXTRA_ACTION = "clocked.action"
         private const val REQUEST_NOTIFICATIONS = 41
     }
 }

@@ -117,14 +117,76 @@ class NativeApi {
 
   Future<void> checkLimits() => _call<void>('checkLimits');
 
-  Future<void> focusStart(DateTime endAt, int minutes) =>
-      _call<void>('focusStart', {'endAt': endAt.millisecondsSinceEpoch, 'minutes': minutes});
+  Future<void> focusStart(DateTime startAt, DateTime endAt, int minutes) => _call<void>('focusStart', {
+        'startAt': startAt.millisecondsSinceEpoch,
+        'endAt': endAt.millisecondsSinceEpoch,
+        'minutes': minutes,
+      });
 
   Future<void> focusStop() => _call<void>('focusStop');
+
+  /// The session running natively (started here or from the Quick Settings tile) and results of
+  /// sessions that ended while the app was closed.
+  Future<NativeFocusState> focusState() async {
+    final raw = await _call<Map<Object?, Object?>>('focusState');
+    if (raw == null) return const NativeFocusState(available: false);
+    DateTime ms(Object? v) => DateTime.fromMillisecondsSinceEpoch((v as num).toInt());
+    final active = raw['active'];
+    return NativeFocusState(
+      available: true,
+      active: active is Map ? (start: ms(active['start']), end: ms(active['end'])) : null,
+      pending: [
+        for (final p in (raw['pending'] as List? ?? const []))
+          if (p is Map)
+            (
+              start: ms(p['start']),
+              plannedEnd: ms(p['plannedEnd']),
+              end: ms(p['end']),
+              completed: p['status'] == 'completed',
+            ),
+      ],
+    );
+  }
+
+  Future<void> focusAck(List<DateTime> starts) =>
+      _call<void>('focusAck', {'starts': [for (final s in starts) s.millisecondsSinceEpoch]});
+
+  // Quick access -------------------------------------------------------------
+
+  /// Calls from Kotlin: "focusChanged" (tile or timer) and "action" (a shortcut while the app is open).
+  static void listen(void Function(String method, Object? args) onCall) {
+    _ch.setMethodCallHandler((call) async => onCall(call.method, call.arguments));
+  }
+
+  /// The shortcut or tile action that opened the app, once.
+  Future<String?> takeAction() => _call<String>('takeAction');
+
+  Future<void> installShortcuts() => _call<bool>('installShortcuts');
+
+  Future<void> updateWidget(Map<String, Object?> data) => _call<void>('updateWidget', {'json': jsonEncode(data)});
+
+  Future<void> syncDowntime(Map<String, Object?> config) => _call<void>('syncDowntime', {'json': jsonEncode(config)});
+
+  Future<void> weeklySummary({required bool enabled, required Map<String, int> weeks}) =>
+      _call<void>('weeklySummary', {'enabled': enabled, 'weeks': jsonEncode(weeks)});
+
+  /// Posts the weekly summary now. False when there was too little data (an explanation is posted instead).
+  Future<bool> weeklyPreview() async => await _call<bool>('weeklyPreview') ?? false;
 
   /// Apps without a label report their package name; show something readable instead.
   static String _label(String? raw, String package) {
     final name = raw?.trim() ?? '';
     return name.isEmpty || name == package ? prettyPackage(package) : name;
   }
+}
+
+typedef PendingFocus = ({DateTime start, DateTime plannedEnd, DateTime end, bool completed});
+
+class NativeFocusState {
+  const NativeFocusState({required this.available, this.active, this.pending = const []});
+
+  /// False in tests and on platforms without the Kotlin side.
+  final bool available;
+  final ({DateTime start, DateTime end})? active;
+  final List<PendingFocus> pending;
 }

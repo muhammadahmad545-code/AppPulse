@@ -123,7 +123,10 @@ class UsageRepo {
   Future<bool> sync() => _syncing ??= _sync().whenComplete(() => _syncing = null);
 
   Future<bool> _sync() async {
-    if (!await native.hasUsageAccess()) return false;
+    if (!await native.hasUsageAccess()) {
+      await native.updateWidget({'day': dayKey(DateTime.now()), 'access': false});
+      return false;
+    }
     final now = DateTime.now();
     final today = startOfDay(now);
     final earliest = addDays(today, -importDays);
@@ -142,7 +145,56 @@ class UsageRepo {
       prefs.syncFrom = today;
     }
     prefs.lastSync = now;
+    await pushWidget();
     return true;
+  }
+
+  // Quick access and background features -----------------------------------
+
+  /// Sends today's numbers (the same ones the Today screen shows) to the home-screen widget.
+  Future<void> pushWidget() async {
+    try {
+      final now = DateTime.now();
+      final today = await day(now);
+      final yesterday = await day(addDays(now, -1));
+      final apps = await appInfos();
+      await native.updateWidget({
+        'day': dayKey(now),
+        'access': true,
+        'total': today.total.inMilliseconds,
+        'yesterday': yesterday.total.inMilliseconds,
+        'top': [
+          for (final e in today.totals.take(3)) {'name': infoFrom(apps, e.key).name, 'ms': e.value.inMilliseconds},
+        ],
+      });
+    } catch (e) {
+      debugPrint('widget update failed: $e');
+    }
+  }
+
+  Future<void> saveDowntime(Downtime d) async {
+    prefs.downtime = d;
+    await native.syncDowntime(d.toJson());
+  }
+
+  /// Weekly summary setting plus the last few complete weeks' totals (Monday key -> ms), which the
+  /// native summary uses for "the week before" when Android no longer has those days.
+  Future<void> pushWeekly() async {
+    final monday = mondayOf(DateTime.now());
+    final weeks = <String, int>{};
+    for (var i = 1; i <= 3; i++) {
+      final from = addDays(monday, -7 * i);
+      final total = totalOf(await db.sessions(from, addDays(from, 7)));
+      if (total > Duration.zero) weeks[dayKey(from)] = total.inMilliseconds;
+    }
+    await native.weeklySummary(enabled: prefs.weeklySummary, weeks: weeks);
+  }
+
+  /// Everything the native side keeps a copy of, sent on every app open.
+  Future<void> pushNative() async {
+    await native.installShortcuts();
+    await native.syncDowntime(prefs.downtime.toJson());
+    await pushWeekly();
   }
 
   Future<void> _refreshApps(Set<String> packages) async {
@@ -246,22 +298,23 @@ class UsageRepo {
   Future<FocusSession?> activeFocus() => db.activeFocus();
 
   Future<void> startFocus(Duration length) async {
+    await reconcileFocus();
     if (await db.activeFocus() != null) return;
     final start = DateTime.now();
     final end = start.add(length);
     await db.startFocus(start, end);
-    await native.focusStart(end, length.inMinutes);
+    await native.focusStart(start, end, length.inMinutes);
   }
 
   /// Ends [session]: completed when its time is up, otherwise stopped early.
-  Future<FocusSession> finishFocus(FocusSession session) async {
-    final now = DateTime.now();
+  Future<FocusSession> finishFocus(FocusSession session, {DateTime? at, bool notifyNative = true}) async {
+    final now = at ?? DateTime.now();
     final completed = !now.isBefore(session.plannedEnd);
     final end = completed ? session.plannedEnd : now;
     final (distraction, top) = await _timeInApps(session.start, end);
     final status = completed ? FocusStatus.completed : FocusStatus.stopped;
     await db.finishFocus(session.id, end: end, status: status, distraction: distraction, top: top);
-    await native.focusStop();
+    if (notifyNative) await native.focusStop();
     return FocusSession(
       id: session.id,
       start: session.start,
@@ -271,6 +324,54 @@ class UsageRepo {
       distraction: distraction,
       topDistraction: top,
     );
+  }
+
+  /// Brings the database in line with the native focus state, which the Quick Settings tile and the
+  /// end-of-session timer change while the app may be closed. Returns true when anything changed.
+  Future<bool> reconcileFocus() => _reconciling ??= _reconcileFocus().whenComplete(() => _reconciling = null);
+
+  Future<bool>? _reconciling;
+
+  Future<bool> _reconcileFocus() async {
+    final state = await native.focusState();
+    if (!state.available) return false;
+    var changed = false;
+    // 1. Sessions that ended outside the app (tile stop, timer): record their results.
+    final imported = <DateTime>[];
+    for (final p in state.pending) {
+      final known = await db.focusByStart(p.start);
+      if (known == null) {
+        final id = await db.startFocus(p.start, p.plannedEnd);
+        await finishFocus(
+          FocusSession(id: id, start: p.start, plannedEnd: p.plannedEnd, status: FocusStatus.active),
+          at: p.completed ? p.plannedEnd : p.end,
+          notifyNative: false,
+        );
+        changed = true;
+      } else if (known.status == FocusStatus.active) {
+        await finishFocus(known, at: p.completed ? known.plannedEnd : p.end, notifyNative: false);
+        changed = true;
+      }
+      imported.add(p.start);
+    }
+    if (imported.isNotEmpty) await native.focusAck(imported);
+    // 2. The running session.
+    final mine = await db.activeFocus();
+    final theirs = state.active;
+    if (theirs != null) {
+      if (mine != null && mine.start != theirs.start) {
+        await finishFocus(mine, notifyNative: false);
+        changed = true;
+      }
+      if (mine == null || mine.start != theirs.start) {
+        await db.startFocus(theirs.start, theirs.end);
+        changed = true;
+      }
+    } else if (mine != null && DateTime.now().isBefore(mine.plannedEnd)) {
+      // Running here but unknown natively (a session from before 2.1): hand it to the native side.
+      await native.focusStart(mine.start, mine.plannedEnd, mine.planned.inMinutes);
+    }
+    return changed;
   }
 
   /// Completes an active session whose time ran out while the app was closed.

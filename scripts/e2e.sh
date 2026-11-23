@@ -181,3 +181,92 @@ alive || fail "app is not running at the end"
 # The app is called Clocked everywhere a user can see.
 tap_text "Settings"; sleep 3
 expect "Clocked can read screen time" 10 "Settings uses the new name"
+
+# ---------------------------------------------------------------------------------------------
+# 2.1: widget, launcher shortcuts, Focus tile, downtime and the weekly summary.
+adb shell pm grant "$PKG" android.permission.POST_NOTIFICATIONS >/dev/null 2>&1 || true
+notified() { adb shell dumpsys notification --noredact 2>/dev/null | grep -qE "$1"; }
+
+# 12. The home-screen widget is registered.
+if adb shell dumpsys appwidget | grep -q "$PKG/$PKG.UsageWidget"; then pass "home-screen widget is registered"; else fail "home-screen widget is not registered"; fi
+
+# 13. Launcher shortcuts are published.
+SC=$(adb shell dumpsys shortcut | grep -A80 "Package: $PKG")
+echo "$SC" | grep -q "id=focus" && pass "Start focus shortcut is published" || fail "Start focus shortcut missing"
+echo "$SC" | grep -q "id=limits" && pass "App limits shortcut is published" || fail "App limits shortcut missing"
+
+# 14. The App limits shortcut opens the limits screen.
+adb shell am force-stop "$PKG"; sleep 2
+adb shell am start -n "$PKG/.MainActivity" --es clocked.action limits >/dev/null 2>&1; sleep 8
+expect "Downtime schedule" 12 "App limits shortcut opens the limits screen"
+shot e2e-16-shortcut-limits
+
+# 15. The Start focus shortcut starts a 25-minute session; stop it in the app.
+adb shell am force-stop "$PKG"; sleep 2
+adb shell am start -n "$PKG/.MainActivity" --es clocked.action focus >/dev/null 2>&1; sleep 8
+expect "Stop session" 12 "Start focus shortcut starts a session"
+expect "Focusing until" 5 "shortcut session shows its end time"
+shot e2e-17-shortcut-focus
+tap_text "Stop session"; sleep 2
+tap_text "Stop"; sleep 3
+tap_text "Done"; sleep 2
+expect "Start focus" 8 "shortcut session stopped in the app"
+
+# 16. The Focus tile starts a session with the app closed; the app shows it running.
+adb shell am force-stop "$PKG"; sleep 2
+TILE="$PKG/.FocusTileService"
+adb shell cmd statusbar add-tile "$TILE"; sleep 3
+adb shell cmd statusbar collapse; sleep 1
+adb shell cmd statusbar click-tile "$TILE"; sleep 4
+adb shell cmd statusbar collapse; sleep 1
+if notified "Focus session"; then pass "Focus tile posts the focus countdown notification"; else fail "no focus notification after tapping the tile"; fi
+launch; sleep 6
+tab "Settings"
+scroll_top
+tap_text "Focus mode"; sleep 4
+expect "Stop session" 12 "focus screen shows the session the tile started"
+expect "left" 5 "tile session has a countdown in the app"
+shot e2e-18-tile-running
+
+# 17. Tapping the tile again stops it, and the open focus screen follows.
+adb shell cmd statusbar click-tile "$TILE"; sleep 4
+adb shell cmd statusbar collapse; sleep 2
+expect "Start focus" 12 "tile stop is reflected in the open focus screen"
+expect_not "Stop session" 2 "no session is running after the tile stops it"
+shot e2e-19-tile-stopped
+back
+
+# 18. Downtime: a window with an app, saved and kept after a restart.
+adb shell am force-stop "$PKG"; sleep 2
+launch; sleep 5
+tab "Settings"
+scroll_top
+tap_text "Downtime"; sleep 3
+expect "Honest limits" 10 "downtime screen opens and says nothing is blocked"
+tap_text "Starts"; sleep 3
+tap_text "OK"; sleep 2
+alive || fail "app died after the downtime time picker"
+tap_text "Add app"; sleep 5
+expect "Choose an app" 10 "downtime app picker opens"
+tap_text "Settings"; sleep 3
+expect "Every day" 10 "adding the first app turns downtime on"
+expect_row "Settings" "Reminder during downtime" "app saved in the downtime list"
+shot e2e-20-downtime
+adb shell am force-stop "$PKG"; sleep 2
+launch; sleep 5
+tab "Settings"
+scroll_top
+tap_text "Downtime"; sleep 3
+expect_row "Settings" "Reminder during downtime" "downtime app persists after restart"
+expect "Every day" 5 "downtime window persists after restart"
+back
+
+# 19. Weekly summary: on by default; the preview posts a notification.
+scroll_to "Send a preview now"
+expect "Monday summary" 5 "weekly summary setting is in Settings"
+tap_text "Send a preview now"; sleep 5
+if notified "Weekly summary|Last week"; then pass "weekly summary preview notification posted"; else fail "no weekly summary notification"; fi
+scroll_to "Focus tile"
+expect "Focus tile" 5 "Settings explains the widget, tile and shortcuts"
+shot e2e-21-settings-quick-access
+alive || fail "app is not running at the end of the 2.1 checks"

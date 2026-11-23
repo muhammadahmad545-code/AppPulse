@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/format.dart';
 import '../data/models.dart';
 import '../state.dart';
+import 'downtime.dart';
 import 'widgets.dart';
 
 typedef _LimitChoice = ({int minutes, bool remove});
@@ -200,6 +201,21 @@ class LimitsScreen extends ConsumerWidget {
                     : 'Optional. Needs "Display over other apps"',
                 trailing: Switch(value: overlayOn, onChanged: (v) => _toggleOverlay(context, ref, v, overlayAllowed)),
               ),
+            ],
+          ),
+          const BSectionTitle('Downtime'),
+          BGroup(
+            children: [
+              Builder(builder: (context) {
+                final d = ref.watch(downtimeProvider);
+                return BListRow(
+                  icon: Icons.bedtime_outlined,
+                  title: 'Downtime schedule',
+                  subtitle: d.enabled ? '${fmtWindow(context, d)} · ${d.apps.length} ${d.apps.length == 1 ? 'app' : 'apps'}' : 'A daily quiet window for chosen apps',
+                  chevron: true,
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const DowntimeScreen())),
+                );
+              }),
             ],
           ),
           const BSectionTitle('Your limits'),

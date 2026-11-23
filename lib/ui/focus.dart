@@ -10,7 +10,10 @@ import '../state.dart';
 import 'widgets.dart';
 
 class FocusScreen extends ConsumerStatefulWidget {
-  const FocusScreen({super.key});
+  const FocusScreen({super.key, this.autoStart = false});
+
+  /// Opened from the "Start focus" shortcut: start a 25-minute session unless one is running.
+  final bool autoStart;
 
   @override
   ConsumerState<FocusScreen> createState() => _FocusScreenState();
@@ -26,7 +29,18 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
   void initState() {
     super.initState();
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
-  }
+    if (widget.autoStart) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        final repo = ref.read(repoProvider);
+        await repo.reconcileFocus();
+        if (!mounted || await repo.activeFocus() != null) {
+          if (mounted) bump(ref);
+          return;
+        }
+        _minutes = 25;
+        await _start();
+      });
+    }
 
   @override
   void dispose() {
@@ -142,7 +156,8 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
           const SizedBox(height: Gap.lg),
           Text(
             'Clocked doesn\'t block anything. While the session runs it notes the time you spend in other apps, '
-            'so afterwards you can see how focused you stayed.',
+            'so afterwards you can see how focused you stayed. The Focus tile in Quick Settings starts and stops '
+            'a 25-minute session too.',
             style: BasaltType.body.copyWith(color: p.textMuted, fontSize: 14),
           ),
           const SizedBox(height: Gap.lg),

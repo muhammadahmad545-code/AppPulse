@@ -64,10 +64,14 @@ object LimitScheduler {
     private const val PERIODIC = "apppulse-limits"
     const val FOLLOW_UP = "apppulse-limit-followup"
 
-    /** A 15-minute check while any limit exists; nothing runs in the background otherwise. */
+    /**
+     * A 15-minute check while any limit, a downtime schedule or the home-screen widget exists;
+     * nothing runs in the background otherwise.
+     */
     fun schedule(ctx: Context) {
         val wm = WorkManager.getInstance(ctx)
-        if (LimitStore.limits(ctx).isEmpty()) {
+        val needed = LimitStore.limits(ctx).isNotEmpty() || Downtime.config(ctx).active || UsageWidget.installed(ctx)
+        if (!needed) {
             wm.cancelUniqueWork(PERIODIC)
             wm.cancelUniqueWork(FOLLOW_UP)
             return
@@ -107,9 +111,17 @@ object LimitChecker {
         }
     }
 
-    fun run(ctx: Context) {
+    /**
+     * Limits, downtime and the widget share one pass over today's usage. The app passes
+     * [refreshWidget] = false because it pushes its own numbers to the widget after a sync.
+     */
+    fun run(ctx: Context, refreshWidget: Boolean = true) {
         val limits = LimitStore.limits(ctx)
-        if (limits.isEmpty() || !Usage.hasAccess(ctx)) return
+        val downtime = Downtime.config(ctx).active
+        if (!Usage.hasAccess(ctx) || (limits.isEmpty() && !downtime)) {
+            if (refreshWidget) safely { UsageWidget.refreshNative(ctx) }
+            return
+        }
         val now = System.currentTimeMillis()
         val day = Usage.dayKey(now)
         val today = Usage.today(ctx, now)
@@ -152,7 +164,16 @@ object LimitChecker {
                 next = minOf(next, wait)
             }
         }
+        Downtime.check(ctx, now, today.foreground)?.let { next = minOf(next, it) }
+        if (refreshWidget) safely { UsageWidget.refreshNative(ctx) }
         if (next != Long.MAX_VALUE) LimitScheduler.followUp(ctx, next + 5_000L)
+    }
+
+    private inline fun safely(block: () -> Unit) {
+        try {
+            block()
+        } catch (_: Exception) {
+        }
     }
 }
 
