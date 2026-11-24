@@ -10,7 +10,7 @@ scroll_to() {
   for i in $(seq 1 8); do has_text "$1" && return 0; swipe_up; done
   has_text "$1"
 }
-scroll_top() { for i in 1 2 3 4; do adb shell input swipe $((SW / 2)) $((SH * 30 / 100)) $((SW / 2)) $((SH * 75 / 100)) 200; done; sleep 1; }
+scroll_top() { for i in 1 2 3 4 5 6 7 8; do adb shell input swipe $((SW / 2)) $((SH * 30 / 100)) $((SW / 2)) $((SH * 75 / 100)) 200; done; sleep 1; }
 
 # Find an app row (one merged accessibility node) by app name plus a word from its detail line.
 _row_xy() {
@@ -112,6 +112,7 @@ back
 
 # 7. Reports: the CSV export reaches Android's share sheet.
 scroll_top
+scroll_to "Reports"
 tap_text "Reports"; sleep 3
 expect "Share CSV" 10 "reports screen opens"
 shot e2e-09-reports
@@ -216,9 +217,10 @@ expect "Start focus" 8 "shortcut session stopped in the app"
 adb shell am force-stop "$PKG"; sleep 2
 TILE="$PKG/.FocusTileService"
 adb shell cmd statusbar add-tile "$TILE"; sleep 3
+# Click with Quick Settings open, as a person would (a click on an unbound tile can be dropped).
+click_tile() { adb shell cmd statusbar expand-settings; sleep 3; adb shell cmd statusbar click-tile "$TILE"; sleep 3; adb shell cmd statusbar collapse; sleep 2; }
 adb shell cmd statusbar collapse; sleep 1
-adb shell cmd statusbar click-tile "$TILE"; sleep 4
-adb shell cmd statusbar collapse; sleep 1
+click_tile
 if notified "Focus session"; then pass "Focus tile posts the focus countdown notification"; else fail "no focus notification after tapping the tile"; fi
 launch; sleep 6
 tab "Settings"
@@ -229,8 +231,7 @@ expect "left" 5 "tile session has a countdown in the app"
 shot e2e-18-tile-running
 
 # 17. Tapping the tile again stops it, and the open focus screen follows.
-adb shell cmd statusbar click-tile "$TILE"; sleep 4
-adb shell cmd statusbar collapse; sleep 2
+click_tile
 expect "Start focus" 12 "tile stop is reflected in the open focus screen"
 expect_not "Stop session" 2 "no session is running after the tile stops it"
 shot e2e-19-tile-stopped
@@ -248,6 +249,8 @@ tap_text "OK"; sleep 2
 alive || fail "app died after the downtime time picker"
 tap_text "Add app"; sleep 5
 expect "Choose an app" 10 "downtime app picker opens"
+tap_class EditText 0; sleep 1
+type_text "Settin"; sleep 2
 tap_text "Settings"; sleep 3
 expect "Every day" 10 "adding the first app turns downtime on"
 expect_row "Settings" "Reminder during downtime" "app saved in the downtime list"

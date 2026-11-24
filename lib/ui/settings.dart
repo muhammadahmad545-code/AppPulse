@@ -166,8 +166,7 @@ class SettingsScreen extends ConsumerWidget {
             BListRow(
               icon: Icons.calendar_view_week_rounded,
               title: 'Monday summary',
-              subtitle: 'Last week\'s total, daily average, change and top app, every Monday morning',
-              maxSubtitleLines: 3,
+              subtitle: 'Last week\'s total and top app, every Monday',
               trailing: Switch(
                 value: weekly,
                 onChanged: (v) async {

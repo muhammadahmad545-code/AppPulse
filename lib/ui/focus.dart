@@ -49,7 +49,16 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
     super.dispose();
   }
 
+  int _ticks = 0;
+
   void _tick() {
+    // The Quick Settings tile can start or stop a session while this screen is open; the native side
+    // also pushes a change event, and this poll is the fallback.
+    if (++_ticks % 5 == 0 && !_busy) {
+      ref.read(repoProvider).reconcileFocus().then((changed) {
+        if (changed && mounted) bump(ref);
+      });
+    }
     final active = ref.read(activeFocusProvider).valueOrNull;
     if (active == null || !mounted) return;
     if (!DateTime.now().isBefore(active.plannedEnd)) {
