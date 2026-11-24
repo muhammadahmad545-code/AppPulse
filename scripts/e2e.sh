@@ -252,7 +252,6 @@ expect "Choose an app" 10 "downtime app picker opens"
 tap_class EditText 0; sleep 1
 type_text "Settin"; sleep 2
 tap_text "Settings"; sleep 3
-hide_keyboard
 scroll_top
 expect "Every day" 10 "adding the first app turns downtime on"
 expect_row "Settings" "Reminder during downtime" "app saved in the downtime list"
