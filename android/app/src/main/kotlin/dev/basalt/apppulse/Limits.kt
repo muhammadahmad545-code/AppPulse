@@ -259,7 +259,7 @@ object Overlay {
                     PixelFormat.TRANSLUCENT,
                 ).apply {
                     gravity = Gravity.BOTTOM
-                    title = "ClockedLimitCard"
+                    setTitle("ClockedLimitCard")
                 }
                 var removed = false
                 fun remove(v: View) {
