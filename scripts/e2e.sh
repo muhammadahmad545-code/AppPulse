@@ -291,17 +291,21 @@ if grep -o '<node [^>]*Card on top of the app[^>]*>' /tmp/ui.xml | grep -q 'chec
 alive || fail "app died turning on the card on top of the app"
 
 # 20. Lower the Settings limit to 5 minutes with the slider.
+set_slider_min() {
+  dump
+  local SEEK SEEK_L
+  SEEK=$(_find class SeekBar 0.5 0.5 first)
+  SEEK_L=$(_find class SeekBar 0.0 0.5 first)
+  if [ -n "$SEEK" ] && [ -n "$SEEK_L" ]; then
+    adb shell input swipe $SEEK ${SEEK_L%% *} ${SEEK##* } 600; sleep 1
+    adb shell input swipe ${SEEK_L%% *} ${SEEK##* } 0 ${SEEK##* } 300; sleep 1
+  else
+    fail "limit slider not found"
+  fi
+}
 tap_row "Settings" "of 45m"; sleep 3
 expect "Daily limit for Settings" 8 "limit sheet opens for an existing limit"
-dump
-SEEK=$(_find class SeekBar 0.5 0.5 first)
-SEEK_L=$(_find class SeekBar 0.0 0.5 first)
-if [ -n "$SEEK" ] && [ -n "$SEEK_L" ]; then
-  adb shell input swipe $SEEK ${SEEK_L%% *} ${SEEK##* } 600; sleep 1
-  adb shell input swipe ${SEEK_L%% *} ${SEEK##* } 0 ${SEEK##* } 300; sleep 1
-else
-  fail "limit slider not found"
-fi
+set_slider_min
 shot e2e-22-limit-5m
 tap_text "Save limit"; sleep 3
 expect_row "Settings" "of 5m" "limit lowered to 5 minutes"
@@ -328,15 +332,42 @@ if [ "$REACHED" -gt 0 ] && [ "$REACHED" -le 300 ]; then
 else
   fail "limit reminder did not arrive within 5 minutes of use (got ${REACHED}s)"
 fi
-sleep 4
-shot e2e-24-limit-card
-if adb shell dumpsys window windows | tr -d '\r' | grep -q "ClockedLimitCard"; then
-  pass "card on top of the app is shown at the limit"
-else
-  fail "card on top of the app did not appear at the limit"
-fi
+# (Android's Settings app hides other apps' cards on top of it, so the card is checked on another app.)
 
-# 23. The app shows the same: Settings is past its 5-minute limit today.
+# 23. The card on top of the app: a 5-minute limit on an ordinary app, used past its limit.
+adb shell input keyevent 3; sleep 2
+OTHER=""; OTHER_NAME=""
+for cand in "com.google.android.deskclock:Clock" "com.android.deskclock:Clock" "com.google.android.contacts:Contacts" "com.android.contacts:Contacts"; do
+  if adb shell pm list packages | tr -d '\r' | grep -q "package:${cand%%:*}\$"; then OTHER=${cand%%:*}; OTHER_NAME=${cand##*:}; break; fi
+done
+echo "card test app: $OTHER ($OTHER_NAME)"
+launch; sleep 5
+tap_text "Add limit"; sleep 5
+expect "Choose an app" 10 "limit app picker opens"
+tap_class EditText 0; sleep 1
+type_text "$OTHER_NAME"; sleep 2
+hide_keyboard
+tap_text "$OTHER_NAME"; sleep 3
+expect "Daily limit for $OTHER_NAME" 8 "limit sheet opens for $OTHER_NAME"
+set_slider_min
+tap_text "Save limit"; sleep 3
+expect_row "$OTHER_NAME" "of 5m" "5-minute limit added for $OTHER_NAME"
+dump
+if grep -o '<node [^>]*Card on top of the app[^>]*>' /tmp/ui.xml | grep -q 'checked="true"'; then pass "card on top of the app is on"; else fail "card on top of the app is not on"; fi
+adb shell monkey -p "$OTHER" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1
+START=$(date +%s)
+CARD=0
+for i in $(seq 1 75); do
+  sleep 4
+  if adb shell dumpsys window windows | tr -d '\r' | grep -q "ClockedLimitCard"; then CARD=$(( $(date +%s) - START )); break; fi
+done
+sleep 1
+shot e2e-24-limit-card
+echo "card on top of $OTHER_NAME after ${CARD}s"
+if [ "$CARD" -gt 0 ] && [ "$CARD" -le 305 ]; then pass "card on top of $OTHER_NAME appeared at the limit (${CARD}s)"; else fail "card on top of $OTHER_NAME did not appear (got ${CARD}s)"; fi
+if notified "$OTHER_NAME: daily limit reached"; then pass "$OTHER_NAME limit notification posted"; else fail "no $OTHER_NAME limit notification"; fi
+
+# 24. The app shows the same: Settings is past its 5-minute limit today.
 adb shell input keyevent 3; sleep 2
 adb shell am force-stop "$PKG"; sleep 2
 launch; sleep 8

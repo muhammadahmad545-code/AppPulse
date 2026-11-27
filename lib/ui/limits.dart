@@ -120,6 +120,8 @@ class LimitsScreen extends ConsumerWidget {
       return;
     }
     repo.prefs.limitOverlay = on;
+    // Flip the switch right away; the native side catches up in the background.
+    bump(ref);
     if (!context.mounted) return;
     await withRepo(ref, (r) => r.pushLimits());
   }
