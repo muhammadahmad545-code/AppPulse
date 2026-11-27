@@ -11,6 +11,9 @@
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <!-- Set the Monday weekly-summary alarm again after a restart. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- While limits or downtime are on: a silent foreground service that keeps reminders on time. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
     <application
         android:label="Clocked"
@@ -66,6 +69,16 @@
         </service>
 
         <!-- Weekly summary alarm, and re-arming it after a reboot or an app update. -->
+        <!-- Limit watcher: checks app switches while the screen is on so limit reminders are on time. -->
+        <service
+            android:name=".LimitGuard"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Checks on-device app usage against daily limits the user set, so limit reminders arrive on time" />
+        </service>
+
         <receiver android:name=".WeeklySummaryReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />

@@ -13,8 +13,9 @@ object Usage {
     // UsageEvents.Event types (numeric so older API levels compile the same way).
     const val RESUMED = 1
     const val PAUSED = 2
-    const val SCREEN_OFF = 15
-    const val SCREEN_ON = 16
+    // Android: SCREEN_INTERACTIVE = 15 (screen on), SCREEN_NON_INTERACTIVE = 16 (screen off).
+    const val SCREEN_ON = 15
+    const val SCREEN_OFF = 16
     const val KEYGUARD_SHOWN = 17
     const val KEYGUARD_HIDDEN = 18
     const val SHUTDOWN = 26
@@ -104,50 +105,37 @@ object Usage {
     fun today(ctx: Context, now: Long = System.currentTimeMillis()): Today = between(ctx, startOfDay(now), now)
 
     /**
-     * Foreground time per package in [from, to), using the same rules as the Dart reconstruction
-     * (one foreground app at a time; screen off, lock and shutdown end the current session).
-     * [Today.foreground] is the app still open at [to].
+     * Foreground time per package in [from, to), built with [Sessions] (the same rules as the app's own
+     * Dart reconstruction, so limits fire at the time the app shows). [Today.foreground] is the app still
+     * open at [to].
      */
     fun between(ctx: Context, from: Long, to: Long): Today {
         if (!hasAccess(ctx) || to <= from) return Today(emptyMap(), null)
-        val events = manager(ctx).queryEvents(from - 3 * 3_600_000L, to)
+        val events = manager(ctx).queryEvents(from - LOOKBACK, to)
         val e = UsageEvents.Event()
-        val totals = HashMap<String, Long>()
-        var open: String? = null
-        var since = 0L
-        val activities = HashSet<String>()
-        fun close(at: Long) {
-            val p = open ?: return
-            val s = maxOf(since, from)
-            val end = minOf(at, to)
-            if (end > s) totals[p] = (totals[p] ?: 0L) + (end - s)
-            open = null
-            activities.clear()
-        }
+        val list = ArrayList<Sessions.Ev>()
         while (events.hasNextEvent()) {
             events.getNextEvent(e)
             if (e.timeStamp > to) break
-            val p = e.packageName ?: continue
-            val c = e.className ?: ""
-            when (e.eventType) {
-                RESUMED -> {
-                    if (open != p) {
-                        close(e.timeStamp)
-                        open = p
-                        since = e.timeStamp
-                    }
-                    activities.add(c)
-                }
-                PAUSED -> if (open == p) {
-                    val known = activities.remove(c)
-                    if (!known || activities.isEmpty()) close(e.timeStamp)
-                }
-                SCREEN_OFF, KEYGUARD_SHOWN, SHUTDOWN -> close(e.timeStamp)
-            }
+            if (e.eventType !in WANTED) continue
+            list.add(Sessions.Ev(e.timeStamp, e.eventType, e.packageName ?: "", e.className ?: ""))
         }
-        val foreground = open
-        close(to)
-        return Today(totals, foreground)
+        return Sessions.totals(list, from, to, Apps.excludedPackages(ctx).toSet())
+    }
+
+    /** Events are read from a little before the window so sessions already open at its start are found. */
+    const val LOOKBACK = 3 * 3_600_000L
+
+    /** True when any app switch, screen or lock event happened in (after, now]. Cheap: a few seconds of events. */
+    fun changedSince(ctx: Context, after: Long, now: Long): Boolean {
+        if (!hasAccess(ctx) || now <= after) return false
+        val events = manager(ctx).queryEvents(after + 1, now + 1)
+        val e = UsageEvents.Event()
+        while (events.hasNextEvent()) {
+            events.getNextEvent(e)
+            if (e.eventType in WANTED) return true
+        }
+        return false
     }
 
     /** [between] without the home screen, System UI and Clocked, like the app's own numbers. */

@@ -1,7 +1,7 @@
 name: clocked
 description: "Clocked: offline screen-time tracker for Android."
 publish_to: "none"
-version: 2.1.0+22
+version: 2.2.0+23
 
 environment:
   sdk: ^3.8.0

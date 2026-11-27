@@ -85,6 +85,10 @@ jobs:
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: flutter build apk --release --split-per-abi --target-platform android-arm,android-arm64,android-x64
 
+      - name: Native unit tests (session rules shared with the limit checker)
+        working-directory: android
+        run: ./gradlew :app:testReleaseUnitTest --no-daemon -q
+
       - name: Collect APKs
         run: |
           mkdir -p dist

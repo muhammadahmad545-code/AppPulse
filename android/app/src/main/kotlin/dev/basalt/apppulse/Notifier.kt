@@ -15,6 +15,7 @@ object Notifier {
     const val FOCUS_ONGOING = "focus_ongoing"
     const val DOWNTIME = "downtime"
     const val WEEKLY = "weekly"
+    const val GUARD = "limit_guard"
     const val FOCUS_ONGOING_ID = 2001
     const val FOCUS_DONE_ID = 2002
 
@@ -39,6 +40,12 @@ object Notifier {
         nm.createNotificationChannel(
             NotificationChannel(DOWNTIME, "Downtime", NotificationManager.IMPORTANCE_DEFAULT).apply {
                 description = "A gentle nudge when you open a downtime app inside your downtime window"
+            },
+        )
+        nm.createNotificationChannel(
+            NotificationChannel(GUARD, "Limit watcher", NotificationManager.IMPORTANCE_MIN).apply {
+                description = "Silent notification that keeps limit reminders on time. You can hide it here."
+                setShowBadge(false)
             },
         )
         nm.createNotificationChannel(

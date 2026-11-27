@@ -4,8 +4,9 @@ import '../core/format.dart';
 abstract final class EventType {
   static const resumed = 1;
   static const paused = 2;
-  static const screenOff = 15;
-  static const screenOn = 16;
+  // Android: SCREEN_INTERACTIVE = 15 (screen on), SCREEN_NON_INTERACTIVE = 16 (screen off).
+  static const screenOn = 15;
+  static const screenOff = 16;
   static const keyguardShown = 17;
   static const keyguardHidden = 18;
   static const shutdown = 26;

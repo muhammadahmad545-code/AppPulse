@@ -39,6 +39,11 @@ class Prefs {
 
   set syncFrom(DateTime? v) => v == null ? _p.remove('syncFrom') : _p.setInt('syncFrom', v.millisecondsSinceEpoch);
 
+  /// Version of the session rules the stored history was built with. Older history is rebuilt once
+  /// (as far back as Android still has events) when the rules are fixed.
+  int get sessionRules => _p.getInt('sessionRules') ?? 1;
+  set sessionRules(int v) => _p.setInt('sessionRules', v);
+
   DateTime? get lastSync {
     final ms = _p.getInt('lastSync');
     return ms == null ? null : DateTime.fromMillisecondsSinceEpoch(ms);

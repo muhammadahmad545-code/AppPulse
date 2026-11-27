@@ -199,4 +199,54 @@ void main() {
     expect(dayKey(DateTime(2026, 1, 5)), '2026-01-05');
     expect(nextDay(DateTime(2026, 1, 31, 15)), DateTime(2026, 2, 1));
   });
+
+  group("Android's raw screen event codes", () {
+    // UsageEvents.Event.SCREEN_INTERACTIVE = 15, SCREEN_NON_INTERACTIVE = 16.
+    test('15 is screen on and 16 is screen off', () {
+      expect(EventType.screenOn, 15);
+      expect(EventType.screenOff, 16);
+    });
+
+    test('waking the phone straight into an app keeps its session (no lock screen)', () {
+      // The app resumes as the screen turns on, is used for 30 minutes, then the screen turns off.
+      final s = run([
+        resume('insta', t(0)),
+        sys(15, t(0)),
+        sys(16, t(30)),
+        pause('insta', t(30, 1)),
+      ]);
+      expect(s, [Session('insta', t(0), t(30))]);
+    });
+
+    test('time with the screen off is never counted', () {
+      final s = run([
+        resume('insta', t(0)),
+        sys(16, t(10)),
+        sys(17, t(10)),
+        sys(15, t(50)),
+        sys(18, t(51)),
+        resume('insta', t(51)),
+        pause('insta', t(56)),
+      ]);
+      expect(s, [Session('insta', t(0), t(10)), Session('insta', t(51), t(56))]);
+      expect(totalOf(s), const Duration(minutes: 15));
+    });
+
+    test('an app left on top over a lock counts from unlock to its pause', () {
+      final s = run([
+        resume('insta', t(0)),
+        sys(16, t(10)),
+        sys(17, t(10)),
+        sys(15, t(20)),
+        sys(18, t(21)),
+        pause('insta', t(25)),
+      ]);
+      expect(s, [Session('insta', t(0), t(10)), Session('insta', t(21), t(25))]);
+    });
+
+    test('the session still open now ends now', () {
+      final s = run([sys(15, t(0)), resume('insta', t(1))], now: t(46));
+      expect(totalOf(s), const Duration(minutes: 45));
+    });
+  });
 }

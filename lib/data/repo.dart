@@ -112,6 +112,9 @@ class UsageRepo {
   /// Events are read from a little before the sync window so sessions already open at its start are found.
   static const lookback = Duration(hours: 3);
 
+  /// 2.2 fixed the screen on/off event codes; history built with older rules is rebuilt once.
+  static const sessionRules = 2;
+
   Set<String>? _excluded;
   Future<bool>? _syncing;
   Map<String, AppInfo>? _apps;
@@ -130,11 +133,18 @@ class UsageRepo {
     final now = DateTime.now();
     final today = startOfDay(now);
     final earliest = addDays(today, -importDays);
-    var from = prefs.syncFrom ?? earliest;
+    final rebuild = prefs.syncFrom != null && prefs.sessionRules < sessionRules;
+    var from = rebuild ? earliest : (prefs.syncFrom ?? earliest);
     if (from.isBefore(earliest)) from = earliest;
     if (from.isAfter(today)) from = today;
 
     final events = await native.events(from.subtract(lookback), now);
+    if (rebuild && events.isNotEmpty) {
+      // Only rebuild whole days Android still has events for; older days keep their stored history.
+      final first = events.map((e) => e.time).reduce((a, b) => a.isBefore(b) ? a : b);
+      final covered = first.isAfter(from.subtract(lookback)) ? nextDay(startOfDay(first)) : from;
+      if (covered.isAfter(from)) from = covered.isAfter(today) ? today : covered;
+    }
     if (events.isNotEmpty) {
       final sessions = splitByDay(
         clipSessions(reconstructSessions(events, now: now, excluded: await excluded()), from, now),
@@ -143,6 +153,7 @@ class UsageRepo {
       await _refreshApps({for (final s in sessions) s.package});
       // Everything before today is complete now; later syncs only rebuild today.
       prefs.syncFrom = today;
+      prefs.sessionRules = sessionRules;
     }
     prefs.lastSync = now;
     await pushWidget();

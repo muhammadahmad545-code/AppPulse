@@ -55,6 +55,12 @@ object LimitStore {
 
     fun mark(ctx: Context, key: String, day: String) = prefs(ctx).edit().putString(key, day).apply()
 
+    fun front(ctx: Context): String? = prefs(ctx).getString("front", null)
+
+    fun setFront(ctx: Context, pkg: String?) {
+        if (front(ctx) != pkg) prefs(ctx).edit().putString("front", pkg).apply()
+    }
+
     fun lastOverlay(ctx: Context, pkg: String) = prefs(ctx).getLong("overlay_at_$pkg", 0L)
 
     fun setLastOverlay(ctx: Context, pkg: String, at: Long) = prefs(ctx).edit().putLong("overlay_at_$pkg", at).apply()
@@ -69,6 +75,7 @@ object LimitScheduler {
      * nothing runs in the background otherwise.
      */
     fun schedule(ctx: Context) {
+        LimitGuard.sync(ctx)
         val wm = WorkManager.getInstance(ctx)
         val needed = LimitStore.limits(ctx).isNotEmpty() || Downtime.config(ctx).active || UsageWidget.installed(ctx)
         if (!needed) {
@@ -93,6 +100,8 @@ class LimitWorker(ctx: Context, params: WorkerParameters) : Worker(ctx, params) 
     override fun doWork(): Result {
         try {
             LimitChecker.run(applicationContext)
+            // Restart the on-time watcher if Android stopped it (allowed only in some states; best effort).
+            LimitGuard.sync(applicationContext)
         } catch (_: Exception) {
         }
         return Result.success()
@@ -101,6 +110,7 @@ class LimitWorker(ctx: Context, params: WorkerParameters) : Worker(ctx, params) 
 
 object LimitChecker {
     private const val WARN_BEFORE = 5 * 60_000L
+    private const val OVERLAY_REPEAT = 10 * 60_000L
 
     private fun fmt(ms: Long): String {
         val m = ms / 60_000L
@@ -114,27 +124,37 @@ object LimitChecker {
     /**
      * Limits, downtime and the widget share one pass over today's usage. The app passes
      * [refreshWidget] = false because it pushes its own numbers to the widget after a sync.
+     * Returns the delay until the next check that matters (a threshold of the app in front, or the next
+     * downtime nudge), or null. With [scheduleFollowUp] it also books that check with WorkManager; the
+     * [LimitGuard] service books its own, exact one instead.
      */
-    fun run(ctx: Context, refreshWidget: Boolean = true) {
+    @Synchronized
+    fun run(ctx: Context, refreshWidget: Boolean = true, scheduleFollowUp: Boolean = true): Long? {
         val limits = LimitStore.limits(ctx)
         val downtime = Downtime.config(ctx).active
         if (!Usage.hasAccess(ctx) || (limits.isEmpty() && !downtime)) {
             if (refreshWidget) safely { UsageWidget.refreshNative(ctx) }
-            return
+            return null
         }
         val now = System.currentTimeMillis()
         val day = Usage.dayKey(now)
         val today = Usage.today(ctx, now)
+        val front = today.foreground
+        // The app that just came to the front gets the card again even if it was dismissed a minute ago.
+        val cameToFront = front != null && LimitStore.front(ctx) != front
+        LimitStore.setFront(ctx, front)
         var next = Long.MAX_VALUE
         for (l in limits) {
             val used = today.totals[l.pkg] ?: 0L
             val limitMs = l.minutes * 60_000L
             val remaining = limitMs - used
-            val inFront = today.foreground == l.pkg
+            val inFront = front == l.pkg
             val notifyId = 1000 + (l.pkg.hashCode() and 0xffff)
+            // Markers carry the limit, so raising or lowering a limit today notifies again at the new one.
+            val mark = "$day:${l.minutes}"
             if (remaining <= 0) {
-                if (!LimitStore.marked(ctx, "reached_${l.pkg}", day)) {
-                    LimitStore.mark(ctx, "reached_${l.pkg}", day)
+                if (!LimitStore.marked(ctx, "reached_${l.pkg}", mark)) {
+                    LimitStore.mark(ctx, "reached_${l.pkg}", mark)
                     Notifier.post(
                         ctx,
                         notifyId,
@@ -143,15 +163,21 @@ object LimitChecker {
                             .setCategory(NotificationCompat.CATEGORY_REMINDER),
                     )
                 }
-                if (inFront && LimitStore.overlay(ctx) && now - LimitStore.lastOverlay(ctx, l.pkg) > 10 * 60_000L) {
-                    LimitStore.setLastOverlay(ctx, l.pkg, now)
-                    Overlay.show(ctx, "Time's up for ${l.name}", "You've used it for ${fmt(used)} today. Your limit is ${fmt(limitMs)}.")
+                if (inFront && LimitStore.overlay(ctx)) {
+                    val since = now - LimitStore.lastOverlay(ctx, l.pkg)
+                    if (cameToFront || since >= OVERLAY_REPEAT) {
+                        LimitStore.setLastOverlay(ctx, l.pkg, now)
+                        Overlay.show(ctx, "Time's up for ${l.name}", "You've used it for ${fmt(used)} today. Your limit is ${fmt(limitMs)}.")
+                        next = minOf(next, OVERLAY_REPEAT)
+                    } else {
+                        next = minOf(next, OVERLAY_REPEAT - since)
+                    }
                 }
                 continue
             }
-            val canWarn = limitMs >= 2 * WARN_BEFORE && !LimitStore.marked(ctx, "warned_${l.pkg}", day)
+            val canWarn = limitMs >= 2 * WARN_BEFORE && !LimitStore.marked(ctx, "warned_${l.pkg}", mark)
             if (canWarn && remaining <= WARN_BEFORE) {
-                LimitStore.mark(ctx, "warned_${l.pkg}", day)
+                LimitStore.mark(ctx, "warned_${l.pkg}", mark)
                 Notifier.post(
                     ctx,
                     notifyId,
@@ -160,13 +186,16 @@ object LimitChecker {
             }
             if (inFront) {
                 val untilWarn = remaining - WARN_BEFORE
-                val wait = if (canWarn && untilWarn > 30_000L) untilWarn else remaining
+                val wait = if (canWarn && untilWarn > 0) untilWarn else remaining
                 next = minOf(next, wait)
             }
         }
-        Downtime.check(ctx, now, today.foreground)?.let { next = minOf(next, it) }
+        Downtime.check(ctx, now, front)?.let { next = minOf(next, it) }
+        // A new day resets every limit: check right after midnight.
+        next = minOf(next, Usage.startOfDay(now) + 24 * 3_600_000L + 1_000L - now)
         if (refreshWidget) safely { UsageWidget.refreshNative(ctx) }
-        if (next != Long.MAX_VALUE) LimitScheduler.followUp(ctx, next + 5_000L)
+        if (scheduleFollowUp && next != Long.MAX_VALUE) LimitScheduler.followUp(ctx, next + 2_000L)
+        return next
     }
 
     private inline fun safely(block: () -> Unit) {

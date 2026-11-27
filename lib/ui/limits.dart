@@ -156,8 +156,9 @@ class LimitsScreen extends ConsumerWidget {
         padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.sm, Gap.lg, 96),
         children: [
           Text(
-            'Clocked checks every 15 minutes, and right on time while a limited app is open. '
-            'You get a notification 5 minutes before the limit and when you reach it. Apps are never blocked.',
+            'You get a notification 5 minutes before the limit and right when you reach it. '
+            'While limits are on, a silent "Watching your app limits" notification keeps these reminders on time; '
+            'it only checks while the screen is on. Apps are never blocked.',
             style: BasaltType.body.copyWith(color: p.textMuted),
           ),
           if (!notifications) ...[

@@ -7,6 +7,21 @@
 Offline screen-time tracker for Android, part of the Basalt app suite. Clocked reads Android's own usage
 records (UsageStatsManager), rebuilds every app session from them and keeps the history on the phone.
 
+## What's new in 2.2
+
+- **Limit reminders on time.** A 45-minute limit now notifies at 45 minutes, not an hour later. While any
+  limit or downtime schedule is on, a silent "Watching your app limits" notification keeps a small
+  watcher running that notices app switches within a few seconds (screen on only) and checks again at the
+  exact minute the app in front reaches its limit. The card on top of the app appears at that moment and
+  again each time you reopen the app after the limit.
+- **Correct session times.** Android's "screen on" and "screen off" events were read the wrong way round,
+  so on some phones (for example waking straight into an app without a lock screen) the time until the
+  next screen-off was lost or a session ended at the wrong moment. Sessions, totals and open/close times
+  are now right, and the last week Android still has is rebuilt once after the update.
+- The background check and the app now share one set of session rules (with unit tests on both sides),
+  so the reminder fires at the same total the app shows.
+- Changing a limit during the day notifies again at the new limit.
+
 ## What's new in 2.1
 
 - **New logo**: a stopwatch whose face is a donut of usage segments in sky tones.
@@ -50,9 +65,13 @@ records (UsageStatsManager), rebuilds every app session from them and keeps the 
   Unit tests cover these cases (`test/reconstruct_test.dart`).
 - Android keeps about a week of events, so Clocked stores sessions in SQLite. It syncs on open and every
   time you return to the app.
-- Limits and downtime are checked by a native WorkManager job every 15 minutes while any limit, a downtime
-  schedule or the widget exists, plus a check timed to the moment the app in front crosses its threshold.
-  Nothing runs in the background otherwise (apart from the Monday summary alarm, if it is on).
+- While any limit or downtime schedule is on, a small foreground service (with a silent notification)
+  watches for app switches every few seconds while the screen is on, and books an exact check for the
+  moment the app in front crosses its threshold. With the screen off it does nothing. A WorkManager job
+  every 15 minutes is the fallback (and refreshes the widget). Nothing runs otherwise (apart from the
+  Monday summary alarm, if it is on).
+- The limit checker (Kotlin, `Sessions.kt`) is a line-for-line port of the Dart session rules, with the
+  same test cases on both sides (`android/app/src/test`).
 - The running focus session lives natively (shared with the Quick Settings tile); the app imports
   sessions the tile started or stopped when it opens, or immediately if it is already open.
 
@@ -63,16 +82,19 @@ records (UsageStatsManager), rebuilds every app session from them and keeps the 
 | Usage access (`PACKAGE_USAGE_STATS`) | Reading Android's own app-usage records. Granted by you in Settings. |
 | Notifications | Limit reminders, downtime nudges, the focus timer and the weekly summary. |
 | Display over other apps (optional) | Only for the reminder card over an app that is past its limit. |
-| Run at startup (`RECEIVE_BOOT_COMPLETED`) | Setting the Monday summary alarm again after a restart. |
+| Run at startup (`RECEIVE_BOOT_COMPLETED`) | Setting the Monday summary alarm again and restarting the limit watcher after a restart. |
+| Foreground service (`FOREGROUND_SERVICE`, special use) | The limit watcher, only while limits or downtime are on, so reminders arrive on time. |
 | Internet | Only the update check against GitHub releases. |
 | Install packages | Opening the Android installer for a downloaded update. |
 
 ## Honest limits
 
 - Clocked never blocks an app. Limits and downtime are reminders; you decide.
-- Background checks (limits, downtime, the widget) run through WorkManager every 15 minutes, plus a timed
-  check while a limited or downtime app stays open. A downtime nudge can arrive a few minutes after you
-  open the app, and the widget can be up to about 15 minutes behind while the app is closed.
+- Limit reminders and downtime nudges arrive within a few seconds while the limit watcher runs. Its
+  notification can be hidden (long-press it, or turn off the "Limit watcher" channel), but if you stop
+  the app from the system's task manager or a battery saver kills it, Clocked falls back to WorkManager,
+  which Android may delay; opening Clocked starts the watcher again.
+- The widget can be up to about 15 minutes behind while the app is closed.
 - The widget shows the app's own numbers after each sync; between syncs the background check recomputes
   them natively, which can differ from the app by a minute or so.
 - Android keeps roughly a week of usage records. The weekly summary reads last week from Android; "the

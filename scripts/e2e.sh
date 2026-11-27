@@ -274,3 +274,74 @@ scroll_to "Focus tile"
 expect "Focus tile" 5 "Settings explains the widget, tile and shortcuts"
 shot e2e-21-settings-quick-access
 alive || fail "app is not running at the end of the 2.1 checks"
+
+# ---------------------------------------------------------------------------------------------
+# 2.2: limit reminders arrive on time (real usage on the emulator, no shortcuts).
+adb shell svc power stayon true
+adb shell appops set "$PKG" SYSTEM_ALERT_WINDOW allow
+adb shell am force-stop "$PKG"; sleep 2
+launch; sleep 6
+tab "Settings"
+scroll_top
+tap_text "App limits"; sleep 3
+# Turn on the card on top of the app (overlay permission granted above).
+tap_class Switch 0; sleep 2
+alive || fail "app died turning on the card on top of the app"
+
+# 20. Lower the Settings limit to 5 minutes with the slider.
+tap_row "Settings" "of 45m"; sleep 3
+expect "Daily limit for Settings" 8 "limit sheet opens for an existing limit"
+dump
+SEEK=$(_find class SeekBar 0.5 0.5 first)
+SEEK_L=$(_find class SeekBar 0.0 0.5 first)
+if [ -n "$SEEK" ] && [ -n "$SEEK_L" ]; then
+  adb shell input swipe $SEEK ${SEEK_L%% *} ${SEEK##* } 600; sleep 1
+  adb shell input swipe ${SEEK_L%% *} ${SEEK##* } 0 ${SEEK##* } 300; sleep 1
+else
+  fail "limit slider not found"
+fi
+shot e2e-22-limit-5m
+tap_text "Save limit"; sleep 3
+expect_row "Settings" "of 5m" "limit lowered to 5 minutes"
+shot e2e-23-limits-5m
+
+# 21. The limit watcher runs (silent notification + foreground service).
+sleep 3
+if adb shell dumpsys activity services "$PKG" | grep -q "LimitGuard"; then pass "limit watcher service is running"; else fail "limit watcher service is not running"; fi
+if notified "Watching your app limits"; then pass "limit watcher notification is shown"; else fail "no limit watcher notification"; fi
+
+# 22. Use Settings until the limit: the reminder must come within seconds of the 5-minute mark.
+USED_MS=$(adb shell dumpsys usagestats 2>/dev/null | tr -d '\r' | grep -m1 -oE "package=com.android.settings totalTimeUsed=\"[0-9:]+\"" || true)
+echo "Android's own Settings usage before the run: $USED_MS"
+adb shell monkey -p com.android.settings -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1
+START=$(date +%s)
+REACHED=0
+for i in $(seq 1 75); do
+  sleep 5
+  if notified "Settings: daily limit reached"; then REACHED=$(( $(date +%s) - START )); break; fi
+done
+echo "limit reminder after ${REACHED}s in Settings"
+if [ "$REACHED" -gt 0 ] && [ "$REACHED" -le 300 ]; then
+  pass "limit reminder arrived on time (${REACHED}s after opening Settings, limit 5m)"
+else
+  fail "limit reminder did not arrive within 5 minutes of use (got ${REACHED}s)"
+fi
+sleep 4
+shot e2e-24-limit-card
+if adb shell dumpsys window windows | tr -d '\r' | grep -qiE "APPLICATION_OVERLAY"; then
+  pass "card on top of the app is shown"
+else
+  echo "NOTE: overlay window not found in dumpsys (see e2e-24-limit-card.png)"
+fi
+
+# 23. The app shows the same: Settings is past its 5-minute limit today.
+adb shell input keyevent 3; sleep 2
+adb shell am force-stop "$PKG"; sleep 2
+launch; sleep 8
+tab "Settings"
+scroll_top
+tap_text "App limits"; sleep 4
+expect_row "Settings" "reached" "App limits shows Settings as reached"
+shot e2e-25-limits-reached
+adb shell svc power stayon false
+alive || fail "app is not running at the end of the 2.2 checks"
