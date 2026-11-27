@@ -286,8 +286,8 @@ scroll_top
 tap_text "App limits"; sleep 3
 # Turn on the card on top of the app (overlay permission granted above).
 tap_contains "Card on top of the app"; sleep 3
-dump
-if grep -o '<node [^>]*Card on top of the app[^>]*>' /tmp/ui.xml | grep -q 'checked="true"'; then pass "card on top of the app turned on by tapping its row"; else fail "card on top of the app did not turn on"; fi
+card_switch_on() { dump; grep -o '<node [^>]*android.widget.Switch[^>]*>' /tmp/ui.xml | head -1 | grep -q 'checked="true"'; }
+if card_switch_on; then pass "card on top of the app turned on by tapping its row"; else fail "card on top of the app did not turn on"; fi
 alive || fail "app died turning on the card on top of the app"
 
 # 20. Lower the Settings limit to 5 minutes with the slider.
@@ -341,7 +341,9 @@ for cand in "com.google.android.deskclock:Clock" "com.android.deskclock:Clock" "
   if adb shell pm list packages | tr -d '\r' | grep -q "package:${cand%%:*}\$"; then OTHER=${cand%%:*}; OTHER_NAME=${cand##*:}; break; fi
 done
 echo "card test app: $OTHER ($OTHER_NAME)"
-launch; sleep 5
+adb shell am force-stop "$PKG"; sleep 2
+adb shell am start -n "$PKG/.MainActivity" --es clocked.action limits >/dev/null 2>&1; sleep 8
+expect "Downtime schedule" 12 "limits screen open for the card test"
 tap_text "Add limit"; sleep 5
 expect "Choose an app" 10 "limit app picker opens"
 tap_class EditText 0; sleep 1
@@ -352,8 +354,8 @@ expect "Daily limit for $OTHER_NAME" 8 "limit sheet opens for $OTHER_NAME"
 set_slider_min
 tap_text "Save limit"; sleep 3
 expect_row "$OTHER_NAME" "of 5m" "5-minute limit added for $OTHER_NAME"
-dump
-if grep -o '<node [^>]*Card on top of the app[^>]*>' /tmp/ui.xml | grep -q 'checked="true"'; then pass "card on top of the app is on"; else fail "card on top of the app is not on"; fi
+scroll_top
+if card_switch_on; then pass "card on top of the app is on"; else fail "card on top of the app is not on"; fi
 adb shell monkey -p "$OTHER" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1
 START=$(date +%s)
 CARD=0
