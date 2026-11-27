@@ -285,7 +285,9 @@ tab "Settings"
 scroll_top
 tap_text "App limits"; sleep 3
 # Turn on the card on top of the app (overlay permission granted above).
-tap_class Switch 0; sleep 2
+tap_contains "Card on top of the app"; sleep 3
+dump
+if grep -o '<node [^>]*Card on top of the app[^>]*>' /tmp/ui.xml | grep -q 'checked="true"'; then pass "card on top of the app turned on by tapping its row"; else fail "card on top of the app did not turn on"; fi
 alive || fail "app died turning on the card on top of the app"
 
 # 20. Lower the Settings limit to 5 minutes with the slider.
@@ -328,10 +330,10 @@ else
 fi
 sleep 4
 shot e2e-24-limit-card
-if adb shell dumpsys window windows | tr -d '\r' | grep -qiE "APPLICATION_OVERLAY"; then
-  pass "card on top of the app is shown"
+if adb shell dumpsys window windows | tr -d '\r' | grep -q "ClockedLimitCard"; then
+  pass "card on top of the app is shown at the limit"
 else
-  echo "NOTE: overlay window not found in dumpsys (see e2e-24-limit-card.png)"
+  fail "card on top of the app did not appear at the limit"
 fi
 
 # 23. The app shows the same: Settings is past its 5-minute limit today.

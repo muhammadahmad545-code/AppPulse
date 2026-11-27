@@ -201,6 +201,7 @@ class LimitsScreen extends ConsumerWidget {
                     ? 'Shows a reminder over an app that is past its limit'
                     : 'Optional. Needs "Display over other apps"',
                 trailing: Switch(value: overlayOn, onChanged: (v) => _toggleOverlay(context, ref, v, overlayAllowed)),
+                onTap: () => _toggleOverlay(context, ref, !overlayOn, overlayAllowed),
               ),
             ],
           ),

@@ -257,7 +257,10 @@ object Overlay {
                     WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
                     WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
                     PixelFormat.TRANSLUCENT,
-                ).apply { gravity = Gravity.BOTTOM }
+                ).apply {
+                    gravity = Gravity.BOTTOM
+                    title = "ClockedLimitCard"
+                }
                 var removed = false
                 fun remove(v: View) {
                     if (removed) return
