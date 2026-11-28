@@ -12,6 +12,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   BasaltUpdater.instance.start(owner: 'muhammadahmad545-code', repo: 'clocked');
   final prefs = await Prefs.load();
+  await BasaltAppearanceController.load();
   final db = await AppDb.open();
   final repo = UsageRepo(db: db, prefs: prefs);
   runApp(ProviderScope(overrides: [repoProvider.overrideWithValue(repo)], child: const ClockedApp()));

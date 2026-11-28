@@ -12,15 +12,35 @@ class ClockedApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return MaterialApp(
-      title: 'Clocked',
-      debugShowCheckedModeBanner: false,
-      theme: basaltTheme(Brightness.light, accent),
-      darkTheme: basaltTheme(Brightness.dark, accent),
-      themeMode: ref.watch(themeModeProvider),
-      home: const _Root(),
+    final mode = ref.watch(themeModeProvider);
+    final look = BasaltAppearanceController.instance;
+    // Settings → Appearance changes rebuild the app straight away, no restart needed.
+    return ListenableBuilder(
+      listenable: look ?? const _Never(),
+      builder: (context, _) {
+        final a = look?.value ?? BasaltAppearance.defaults;
+        final reduce = look?.reduceMotion ?? false;
+        return MaterialApp(
+          title: 'Clocked',
+          debugShowCheckedModeBanner: false,
+          theme: basaltTheme(Brightness.light, accent, appearance: a, reduceMotion: reduce),
+          darkTheme: basaltTheme(Brightness.dark, accent, appearance: a, reduceMotion: reduce),
+          themeMode: mode,
+          builder: look == null ? null : look.wrap,
+          home: const _Root(),
+        );
+      },
     );
   }
+}
+
+/// A listenable that never fires, for tests that start the app without loading the appearance.
+class _Never implements Listenable {
+  const _Never();
+  @override
+  void addListener(VoidCallback listener) {}
+  @override
+  void removeListener(VoidCallback listener) {}
 }
 
 class _Root extends ConsumerWidget {

@@ -470,3 +470,55 @@ tap_text "Restore"; sleep 6
 expect "0 days of screen time added" 30 "restoring the same backup again adds nothing"
 tap_text "OK"; sleep 2
 alive || fail "app is not running at the end of the backup checks"
+
+# --- Appearance: draft preview, Apply, persistence after restart, reset -----------------------
+scroll_tap() {
+  for i in $(seq 1 10); do
+    dump; xy=$(_find exact "$1")
+    if [ -n "$xy" ] && [ "${xy#* }" -lt $((SH*65/100)) ]; then adb shell input tap $xy; echo "tapped '$1' at $xy"; return 0; fi
+    swipe_up
+  done
+  return 1
+}
+is_selected() { dump; python3 - "$1" <<'PY'
+import re, sys, html
+xml = open('/tmp/ui.xml', encoding='utf-8', errors='ignore').read()
+for m in re.finditer(r'<node [^>]*>', xml):
+    n = m.group(0)
+    vals = [html.unescape(v) for v in re.findall(r' (?:text|content-desc)="([^"]*)"', n)]
+    if any(v == sys.argv[1] or sys.argv[1] in v.split('\n') for v in vals):
+        sys.exit(0 if ('selected="true"' in n or 'checked="true"' in n) else 1)
+sys.exit(1)
+PY
+}
+adb shell am force-stop "$PKG"; sleep 2
+launch; sleep 6
+tab "Settings"
+scroll_tap "Appearance"; sleep 3
+expect "Clocked, your way" 10 "Appearance screen opens with a live preview"
+shot e2e-appearance
+scroll_tap "Rose accent"; sleep 1
+scroll_tap "Space Grotesk font"; sleep 1
+scroll_tap "Pure black background"; sleep 1
+scroll_tap "Icons only"; sleep 1
+shot e2e-appearance-draft
+expect "Apply" 5 "changes wait for Apply"
+tap_text "Apply"; sleep 2
+expect_not "Discard" 2 "Apply saves the draft"
+back
+adb shell am force-stop "$PKG"; sleep 2
+launch; sleep 6
+shot e2e-appearance-after-restart
+tab "Settings"
+scroll_tap "Appearance"; sleep 3
+for i in 1 2 3; do has_text "Rose accent" && break; swipe_up; done
+if is_selected "Rose accent"; then pass "accent choice survives a restart"; else fail "accent choice survives a restart"; fi
+scroll_to "Space Grotesk font" >/dev/null
+if is_selected "Space Grotesk font"; then pass "font choice survives a restart"; else fail "font choice survives a restart"; fi
+scroll_to "Reset to default" >/dev/null; tap_text "Reset to default"; sleep 1
+tap_text "Apply"; sleep 2
+scroll_top
+for i in 1 2 3; do has_text "Clocked accent" && break; swipe_up; done
+if is_selected "Clocked accent"; then pass "Reset to default returns to the app colour"; else fail "Reset to default returns to the app colour"; fi
+back
+alive || fail "app died during the appearance checks"

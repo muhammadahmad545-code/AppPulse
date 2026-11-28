@@ -2,6 +2,7 @@ import 'package:basalt/basalt.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../app.dart';
 import '../core/format.dart';
 import '../state.dart';
 import 'accuracy.dart';
@@ -17,31 +18,6 @@ class SettingsScreen extends ConsumerWidget {
 
   void _push(BuildContext context, Widget screen) =>
       Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
-
-  Future<void> _pickTheme(BuildContext context, WidgetRef ref) async {
-    final current = ref.read(themeModeProvider);
-    final mode = await showModalBottomSheet<ThemeMode>(
-      context: context,
-      showDragHandle: true,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final (m, label) in const [(ThemeMode.system, 'System'), (ThemeMode.light, 'Light'), (ThemeMode.dark, 'Dark')])
-              ListTile(
-                title: Text(label),
-                trailing: m == current ? Icon(Icons.check_rounded, color: ctx.basalt.accent) : null,
-                onTap: () => Navigator.pop(ctx, m),
-              ),
-            const SizedBox(height: Gap.sm),
-          ],
-        ),
-      ),
-    );
-    if (mode == null) return;
-    ref.read(prefsProvider).themeMode = mode;
-    ref.read(themeModeProvider.notifier).state = mode;
-  }
 
   Future<void> _pickGoal(BuildContext context, WidgetRef ref) async {
     final current = ref.read(goalProvider);
@@ -224,15 +200,22 @@ class SettingsScreen extends ConsumerWidget {
           title: 'Preferences',
           children: [
             BListRow(
-              icon: Icons.brightness_6_outlined,
-              title: 'Theme',
-              subtitle: switch (theme) {
-                ThemeMode.light => 'Light',
-                ThemeMode.dark => 'Dark',
-                _ => 'System',
-              },
+              icon: Icons.palette_outlined,
+              title: 'Appearance',
+              subtitle: '${switch (theme) { ThemeMode.light => 'Light', ThemeMode.dark => 'Dark', _ => 'System' }} theme · colour, font, text size, layout and motion',
               chevron: true,
-              onTap: () => _pickTheme(context, ref),
+              onTap: () => _push(
+                context,
+                BasaltAppearanceScreen(
+                  appName: 'Clocked',
+                  appAccent: accent,
+                  themeMode: theme,
+                  onThemeMode: (m) {
+                    ref.read(prefsProvider).themeMode = m;
+                    ref.read(themeModeProvider.notifier).state = m;
+                  },
+                ),
+              ),
             ),
             BListRow(
               icon: Icons.flag_outlined,
