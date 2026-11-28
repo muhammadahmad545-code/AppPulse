@@ -75,6 +75,11 @@ class _PasswordDialogState extends State<_PasswordDialog> {
                   : 'This backup is protected. Enter the password you chose when you made it.',
               style: TextStyle(color: p.textMuted),
             ),
+            // Above the fields, so the keyboard never hides it.
+            if (_problem != null) ...[
+              const SizedBox(height: Gap.sm),
+              Text(_problem!, style: TextStyle(color: p.danger, fontWeight: FontWeight.w600)),
+            ],
             const SizedBox(height: Gap.md),
             TextField(
               controller: _password,
@@ -96,10 +101,6 @@ class _PasswordDialogState extends State<_PasswordDialog> {
                 onChanged: (_) => setState(() => _problem = null),
                 decoration: const InputDecoration(labelText: 'Repeat password'),
               ),
-            ],
-            if (_problem != null) ...[
-              const SizedBox(height: Gap.sm),
-              Text(_problem!, style: TextStyle(color: p.danger)),
             ],
           ],
         ),
