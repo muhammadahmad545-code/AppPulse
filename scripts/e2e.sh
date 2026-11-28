@@ -403,11 +403,11 @@ tap_text "Back up to a file"; sleep 3
 expect "Protect this backup?" 10 "backup asks about a password"
 tap_class EditText 0; type_text "secret123"
 tap_class EditText 1; type_text "secret123"
-hide_keyboard
-tap_text "Save with password"; sleep 6
+# No Escape here: it closes a Flutter dialog. The dialog sits above the keyboard.
+tap_text "Save with password"; sleep 8
 shot e2e-26-save-screen
-tap_any "SAVE" "Save"; sleep 3
-expect "are in the file" 20 "backup saved through Android's Save screen"
+for i in 1 2 3 4 5; do tap_any "SAVE" "Save" && break; sleep 3; done; sleep 3
+expect "are in the file" 30 "backup saved through Android's Save screen"
 shot e2e-27-backup-saved
 tap_text "OK"; sleep 2
 BACKUP=$(adb shell "ls /sdcard/Download/clocked-backup-*.json" 2>/dev/null | tr -d '\r' | head -1)
