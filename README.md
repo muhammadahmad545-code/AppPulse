@@ -7,6 +7,13 @@
 Offline screen-time tracker for Android, part of the Basalt app suite. Clocked reads Android's own usage
 records (UsageStatsManager), rebuilds every app session from them and keeps the history on the phone.
 
+## What's new in 2.3
+
+- **Backup and restore for a new phone:** Settings → *Back up to a file* saves your screen-time history (Android itself keeps only about a week), app limits, focus sessions, downtime, goal and weekly-summary setting into one file, through Android's own "Save to" screen (Downloads, Drive, a USB stick…). On the new phone, install Clocked, allow usage access, then use *Restore from a backup*.
+- **Optional password:** the file can be sealed with AES-256-GCM under a key derived from your password (PBKDF2-HMAC-SHA256, 210,000 rounds). A wrong password is caught before anything changes; without one, the file is readable JSON.
+- **Nothing counted twice:** days this phone already has (from its own Android history or an earlier restore) are kept as they are, today is left to live tracking, limits you already set win, and focus sessions are matched by start time. Restoring the same file again adds nothing. Restored limits and downtime take effect at once.
+- The limit card's "display over other apps" permission is per phone, so that switch is not part of a backup.
+
 ## What's new in 2.2
 
 - **Limit reminders on time.** A 45-minute limit now notifies at 45 minutes, not an hour later. While any

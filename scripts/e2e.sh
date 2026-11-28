@@ -380,3 +380,93 @@ expect_row "Settings" "reached" "App limits shows Settings as reached"
 shot e2e-25-limits-reached
 adb shell svc power stayon false
 alive || fail "app is not running at the end of the 2.2 checks"
+
+# 25. Backup and restore (2.3).
+# a) Save a password-protected backup through Android's "Save to" screen.
+# b) Restore it: a wrong password is refused, the right one opens it, and nothing is added twice
+#    (every day it holds is already on this phone).
+# c) Restore a prepared backup holding an older day and a limit for an app this phone has never
+#    seen: both come back, and a second restore adds nothing.
+tap_any() { for t in "$@"; do tap_text "$t" && return 0; done; return 1; }
+# Scroll until the text is on screen, then a little more so it sits clear of the bottom tab bar.
+reach() { scroll_to "$1" >/dev/null; adb shell input swipe $((SW / 2)) $((SH * 60 / 100)) $((SW / 2)) $((SH * 40 / 100)) 300; sleep 1; }
+open_settings() { adb shell am force-stop "$PKG"; sleep 2; launch; sleep 8; tab "Settings"; scroll_top; }
+pick_file() {
+  sleep 4
+  if ! has_text "$1"; then tap_any "Show roots" >/dev/null; sleep 2; tap_any "Downloads" "Download" >/dev/null; sleep 4; fi
+  tap_text "$1"; sleep 5
+}
+adb shell "rm -f /sdcard/Download/clocked-backup-*" >/dev/null 2>&1
+open_settings
+reach "Back up to a file"
+tap_text "Back up to a file"; sleep 3
+expect "Protect this backup?" 10 "backup asks about a password"
+tap_class EditText 0; type_text "secret123"
+tap_class EditText 1; type_text "secret123"
+hide_keyboard
+tap_text "Save with password"; sleep 6
+shot e2e-26-save-screen
+tap_any "SAVE" "Save"; sleep 3
+expect "are in the file" 20 "backup saved through Android's Save screen"
+shot e2e-27-backup-saved
+tap_text "OK"; sleep 2
+BACKUP=$(adb shell "ls /sdcard/Download/clocked-backup-*.json" 2>/dev/null | tr -d '\r' | head -1)
+if [ -n "$BACKUP" ]; then pass "backup file written ($BACKUP)"; else fail "backup file written to Downloads"; fi
+adb exec-out cat "$BACKUP" > "$OUT/backup.json" 2>/dev/null
+if grep -q '"encrypted":true' "$OUT/backup.json"; then pass "backup file is encrypted"; else fail "backup file is encrypted"; fi
+if grep -q "com.android.settings" "$OUT/backup.json"; then fail "app names are not readable in the encrypted file"; else pass "app names are not readable in the encrypted file"; fi
+
+NAME=$(basename "${BACKUP:-clocked-backup.json}")
+reach "Restore from a backup"
+tap_text "Restore from a backup"
+pick_file "$NAME"
+expect "Backup password" 15 "a protected backup asks for its password"
+tap_class EditText 0; type_text "wrongpass"
+tap_text "Open backup"; sleep 6
+expect "That password is not right" 20 "a wrong password is refused"
+tap_class EditText 0; type_text "secret123"
+tap_text "Open backup"; sleep 6
+expect "Restore this backup?" 20 "the right password opens the backup"
+shot e2e-28-restore-confirm
+tap_text "Restore"; sleep 6
+expect "Restore finished" 30 "restore of this phone's own backup finishes"
+expect "0 days of screen time added" 3 "days already on this phone are not added twice"
+expect "0 app limits added" 3 "limits already on this phone are not added twice"
+shot e2e-29-restore-own
+tap_text "OK"; sleep 2
+
+# c) A prepared backup from "another phone".
+NOW=$(adb shell date +%s | tr -d '\r')
+OLD=$((NOW - 3 * 86400))
+OLDDAY=$(adb shell date -d "@$OLD" +%Y-%m-%d | tr -d '\r')
+cat > "$OUT/clocked-backup-old-phone.json" <<JSON
+{"app":"clocked","format":1,"exportedAt":"2026-01-01T09:00:00.000","appVersion":"2.3.0",
+ "settings":{"goalMinutes":150,"weeklySummary":true,"themeMode":"system","downtime":{"enabled":false,"start":1380,"end":420,"apps":[]}},
+ "limits":[{"package":"dev.basalt.e2e.oldphone","minutes":30,"enabled":true}],
+ "apps":[{"package":"dev.basalt.e2e.oldphone","name":"Old Phone App","category":-1,"system":false}],
+ "days":[{"day":"$OLDDAY","unlocks":9,"sessions":[["dev.basalt.e2e.oldphone",${OLD}000,$((OLD + 1800))000]]}],
+ "focus":[]}
+JSON
+adb push "$OUT/clocked-backup-old-phone.json" /sdcard/Download/clocked-backup-old-phone.json >/dev/null
+adb shell content call --uri content://media --method scan_volume --arg external_primary >/dev/null 2>&1
+reach "Restore from a backup"
+tap_text "Restore from a backup"
+pick_file "clocked-backup-old-phone.json"
+expect "Restore this backup?" 20 "an unprotected backup opens without a password"
+tap_text "Restore"; sleep 6
+expect "1 day of screen time added" 30 "the older day from the other phone is restored"
+expect "1 app limit added" 3 "the other phone's limit is restored"
+shot e2e-30-restore-old-phone
+tap_text "OK"; sleep 2
+scroll_top
+tap_text "App limits"; sleep 4
+expect_row "Old Phone App" "30m" "the restored limit is listed under its app name"
+shot e2e-31-restored-limit
+back
+reach "Restore from a backup"
+tap_text "Restore from a backup"
+pick_file "clocked-backup-old-phone.json"
+tap_text "Restore"; sleep 6
+expect "0 days of screen time added" 30 "restoring the same backup again adds nothing"
+tap_text "OK"; sleep 2
+alive || fail "app is not running at the end of the backup checks"

@@ -102,6 +102,81 @@ class AppDb {
     await _db.delete('focus', where: 'status != ?', whereArgs: [FocusStatus.active.name]);
   }
 
+  // Backup -----------------------------------------------------------------
+
+  /// Every stored session and unlock count, grouped by day, oldest first.
+  Future<List<({String day, int unlocks, List<Session> sessions})>> allDays() async {
+    final rows = await _db.query('sessions', columns: ['package', 'start_ms', 'end_ms', 'day'], orderBy: 'start_ms');
+    final unlockRows = await _db.query('days');
+    final byDay = <String, List<Session>>{};
+    for (final r in rows) {
+      byDay.putIfAbsent(r['day']! as String, () => []).add(Session(
+            r['package']! as String,
+            DateTime.fromMillisecondsSinceEpoch(r['start_ms']! as int),
+            DateTime.fromMillisecondsSinceEpoch(r['end_ms']! as int),
+          ));
+    }
+    final unlocks = {for (final r in unlockRows) r['day']! as String: r['unlocks']! as int};
+    final keys = {...byDay.keys, ...unlocks.keys}.toList()..sort();
+    return [for (final k in keys) (day: k, unlocks: unlocks[k] ?? 0, sessions: byDay[k] ?? const <Session>[])];
+  }
+
+  /// Days that have any stored session or unlock count.
+  Future<Set<String>> storedDays() async {
+    final rows = await _db.rawQuery('SELECT day FROM sessions UNION SELECT day FROM days');
+    return {for (final r in rows) r['day']! as String};
+  }
+
+  Future<Set<int>> focusStarts() async {
+    final rows = await _db.query('focus', columns: ['start_ms']);
+    return {for (final r in rows) r['start_ms']! as int};
+  }
+
+  /// Adds restored data in one transaction. The caller has already removed anything this phone has.
+  Future<void> insertRestored({
+    required List<({String day, int unlocks, List<Session> sessions})> days,
+    required List<AppLimit> limits,
+    required List<({int start, int plannedEnd, int end, String status, int distractionMs, String? top})> focus,
+    required Map<String, ({String name, int category, bool system})> apps,
+  }) async {
+    await _db.transaction((txn) async {
+      final batch = txn.batch();
+      for (final d in days) {
+        for (final s in d.sessions) {
+          batch.insert('sessions', {
+            'package': s.package,
+            'start_ms': s.start.millisecondsSinceEpoch,
+            'end_ms': s.end.millisecondsSinceEpoch,
+            'day': d.day,
+          });
+        }
+        if (d.unlocks > 0) batch.insert('days', {'day': d.day, 'unlocks': d.unlocks}, conflictAlgorithm: ConflictAlgorithm.ignore);
+      }
+      final now = DateTime.now().millisecondsSinceEpoch;
+      for (var i = 0; i < limits.length; i++) {
+        final l = limits[i];
+        batch.insert('limits', {'package': l.package, 'minutes': l.minutes, 'enabled': l.enabled ? 1 : 0, 'created_ms': now + i},
+            conflictAlgorithm: ConflictAlgorithm.ignore);
+      }
+      for (final f in focus) {
+        batch.insert('focus', {
+          'start_ms': f.start,
+          'planned_end_ms': f.plannedEnd,
+          'end_ms': f.end,
+          'status': f.status,
+          'distraction_ms': f.distractionMs,
+          'top_distraction': f.top,
+        });
+      }
+      // Marked installed so the next sync checks each one on this phone and updates it.
+      for (final e in apps.entries) {
+        batch.insert('apps', {'package': e.key, 'name': e.value.name, 'category': e.value.category, 'system': e.value.system ? 1 : 0, 'installed': 1, 'launchable': 1},
+            conflictAlgorithm: ConflictAlgorithm.ignore);
+      }
+      await batch.commit(noResult: true);
+    });
+  }
+
   // Apps -------------------------------------------------------------------
 
   Future<void> upsertApps(List<AppInfo> apps) async {
@@ -186,6 +261,12 @@ class AppDb {
   Future<FocusSession?> activeFocus() async {
     final rows = await _db.query('focus', where: 'status = ?', whereArgs: [FocusStatus.active.name], limit: 1);
     return rows.isEmpty ? null : _focus(rows.first);
+  }
+
+  /// Finished focus sessions, oldest first.
+  Future<List<FocusSession>> allFinishedFocus() async {
+    final rows = await _db.query('focus', where: 'status != ?', whereArgs: [FocusStatus.active.name], orderBy: 'start_ms');
+    return rows.map(_focus).toList();
   }
 
   Future<List<FocusSession>> focusHistory({int limit = 50}) async {

@@ -1,6 +1,8 @@
+import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter/foundation.dart';
 
 import '../core/format.dart';
+import 'backup.dart';
 import 'db.dart';
 import 'models.dart';
 import 'native.dart';
@@ -401,6 +403,90 @@ class UsageRepo {
     await _refreshApps({for (final e in totals) e.key});
     final apps = await appInfos();
     return (totalOf(sessions), infoFrom(apps, totals.first.key).name);
+  }
+
+  // Backup -----------------------------------------------------------------
+
+  /// Everything Clocked keeps, ready to be written to a backup file.
+  Future<BackupData> backupData() async {
+    final apps = await db.apps();
+    final days = await db.allDays();
+    final used = {for (final d in days) for (final s in d.sessions) s.package};
+    final limits = await db.limits();
+    used.addAll(limits.map((l) => l.package));
+    return BackupData(
+      exportedAt: DateTime.now(),
+      appVersion: '',
+      settings: BackupSettings(
+        goalMinutes: prefs.goalMinutes,
+        weeklySummary: prefs.weeklySummary,
+        themeMode: prefs.themeMode.name,
+        downtime: prefs.downtime,
+      ),
+      limits: limits,
+      apps: {
+        for (final p in used)
+          if (apps[p] != null) p: (name: apps[p]!.name, category: apps[p]!.category, system: apps[p]!.system),
+      },
+      days: [for (final d in days) BackupDay(d.day, d.unlocks, d.sessions)],
+      focus: [
+        for (final f in await db.allFinishedFocus())
+          BackupFocus(start: f.start, plannedEnd: f.plannedEnd, end: f.end ?? f.plannedEnd, status: f.status, distraction: f.distraction, top: f.topDistraction),
+      ],
+    );
+  }
+
+  /// Adds what this phone lacks from [data] and takes its settings, then brings the native limit
+  /// checker, downtime and widget up to date so limits work straight away.
+  Future<RestorePlan> restore(BackupData data) async {
+    // This phone's own recent history comes first: read it from Android before deciding what to add.
+    final synced = await sync().catchError((Object _) => false);
+    if (!synced && prefs.syncFrom == null) {
+      // Without usage access yet, the first sync later must not rebuild over restored days.
+      prefs.syncFrom = startOfDay(DateTime.now());
+      prefs.sessionRules = sessionRules;
+    }
+    final plan = ClockedBackup.plan(
+      data,
+      daysHere: await db.storedDays(),
+      limitsHere: {for (final l in await db.limits()) l.package},
+      focusHere: await db.focusStarts(),
+      appsHere: (await db.apps()).keys.toSet(),
+      now: DateTime.now(),
+    );
+    await db.insertRestored(
+      days: [for (final d in plan.days) (day: d.day, unlocks: d.unlocks, sessions: d.sessions)],
+      limits: plan.limits,
+      focus: [
+        for (final f in plan.focus)
+          (
+            start: f.start.millisecondsSinceEpoch,
+            plannedEnd: f.plannedEnd.millisecondsSinceEpoch,
+            end: f.end.millisecondsSinceEpoch,
+            status: f.status.name,
+            distractionMs: f.distraction.inMilliseconds,
+            top: f.top,
+          ),
+      ],
+      apps: plan.apps,
+    );
+    _apps = null;
+    prefs.goalMinutes = data.settings.goalMinutes;
+    prefs.weeklySummary = data.settings.weeklySummary;
+    prefs.themeMode = switch (data.settings.themeMode) {
+      'light' => ThemeMode.light,
+      'dark' => ThemeMode.dark,
+      _ => ThemeMode.system,
+    };
+    await saveDowntime(data.settings.downtime);
+    try {
+      await pushLimits();
+      await pushWeekly();
+    } catch (e) {
+      debugPrint('native update after restore failed: $e');
+    }
+    await pushWidget();
+    return plan;
   }
 
   Future<void> clearHistory() async {

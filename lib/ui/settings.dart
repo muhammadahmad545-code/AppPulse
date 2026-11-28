@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/format.dart';
 import '../state.dart';
 import 'accuracy.dart';
+import 'backup.dart';
 import 'downtime.dart';
 import 'focus.dart';
 import 'limits.dart';
@@ -258,6 +259,20 @@ class SettingsScreen extends ConsumerWidget {
                     },
             ),
             BListRow(
+              icon: Icons.save_alt_rounded,
+              title: 'Back up to a file',
+              subtitle: 'Screen-time history, limits, focus sessions and settings, for a new phone or safekeeping',
+              chevron: true,
+              onTap: () => backUp(context, ref),
+            ),
+            BListRow(
+              icon: Icons.settings_backup_restore_rounded,
+              title: 'Restore from a backup',
+              subtitle: 'Bring history, limits and settings back from a Clocked backup file',
+              chevron: true,
+              onTap: () => restoreBackup(context, ref),
+            ),
+            BListRow(
               icon: Icons.delete_outline_rounded,
               title: 'Clear history',
               subtitle: 'Delete saved screen time and focus history',
@@ -287,8 +302,8 @@ class SettingsScreen extends ConsumerWidget {
             BListRow(
               icon: Icons.lock_outline_rounded,
               title: 'Private by design',
-              subtitle: 'Everything stays on this phone. No account, no analytics. '
-                  'The only network request is the update check on GitHub.',
+              subtitle: 'Everything stays on this phone. No account, no analytics. Only backup files you save '
+                  'yourself leave it. The only network request is the update check on GitHub.',
               maxSubtitleLines: 4,
             ),
           ],
