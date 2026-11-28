@@ -26,7 +26,7 @@ class ClockedApp extends ConsumerWidget {
           theme: basaltTheme(Brightness.light, accent, appearance: a, reduceMotion: reduce),
           darkTheme: basaltTheme(Brightness.dark, accent, appearance: a, reduceMotion: reduce),
           themeMode: mode,
-          builder: look == null ? null : look.wrap,
+          builder: look?.wrap,
           home: const _Root(),
         );
       },
